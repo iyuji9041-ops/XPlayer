@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 10% White color for that flat glass look -->
+    <solid android:color="#1AFFFFFF"/> 
+    <!-- Perfectly rounded corners -->
+    <corners android:radius="16dp"/>
+    <!-- Ekdum halka sa border premium feel ke liye -->
+    <stroke android:width="1dp" android:color="#0DFFFFFF"/> 
+</shape>

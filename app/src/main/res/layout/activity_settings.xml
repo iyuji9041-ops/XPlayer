@@ -1,0 +1,768 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#0A0A0A"
+     android:orientation="vertical">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:gravity="center_vertical"
+         android:orientation="horizontal"
+         android:paddingBottom="16dp"
+         android:paddingHorizontal="8dp"
+         android:paddingTop="40dp">
+
+        <ImageButton
+             android:layout_height="48dp"
+             android:layout_width="48dp"
+             android:src="@drawable/ic_arrow_left"
+             android:background="?attr/selectableItemBackgroundBorderless"
+             app:tint="#FFFFFF"
+             android:id="@+id/btnBackSettings" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textSize="22sp"
+             android:textColor="#FFFFFF"
+             android:layout_marginStart="8dp"
+             android:text="Settings"
+             android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <ScrollView
+         android:layout_height="match_parent"
+         android:layout_width="match_parent"
+         android:scrollbars="none"
+         android:paddingBottom="40dp"
+         android:clipToPadding="false">
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:orientation="vertical">
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginBottom="8dp"
+                 android:textSize="14sp"
+                 android:textColor="#AECBFA"
+                 android:layout_marginTop="16dp"
+                 android:layout_marginStart="24dp"
+                 android:text="Playback Engine"
+                 android:textStyle="bold" />
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelResume">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_media_play"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconResume" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconResume"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Auto-Resume Control" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvResumeSubtitle"
+                         android:text="Always resume from last position" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelSpeed">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_speed"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconSpeed" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconSpeed"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Default Playback Speed" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvSpeedSubtitle"
+                         android:text="Currently set to 1.0x" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelHwDecoder">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_menu_manage"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconHw" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconHw"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Hardware Decoder" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvHwSubtitle"
+                         android:text="Hardware Acceleration (HW)" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_earbud"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconAudio" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconAudio"
+                     android:layout_toStartOf="@+id/switchBgAudio"
+                     android:layout_marginEnd="16dp"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Background Audio" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="Play sound when app is minimized" />
+
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_centerVertical="true"
+                     android:layout_alignParentEnd="true"
+                     android:id="@+id/switchBgAudio" />
+
+            </RelativeLayout>
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginBottom="8dp"
+                 android:textSize="14sp"
+                 android:textColor="#AECBFA"
+                 android:layout_marginTop="24dp"
+                 android:layout_marginStart="24dp"
+                 android:text="Interface and Visual"
+                 android:textStyle="bold" />
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelTheme">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_aspect_ratio"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconTheme" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconTheme"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="App Theme Mode" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvThemeSubtitle"
+                         android:text="Deep AMOLED Dark" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelTimeout">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_menu_recent_history"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconTimeout" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconTimeout"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="UI Timeout Duration" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvTimeoutSubtitle"
+                         android:text="Auto-hide controls after 4 seconds" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginBottom="8dp"
+                 android:textSize="14sp"
+                 android:textColor="#AECBFA"
+                 android:layout_marginTop="24dp"
+                 android:layout_marginStart="24dp"
+                 android:text="Audio and Subtitle"
+                 android:textStyle="bold" />
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelSubtitle">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_subtitle"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconSubtitle" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconSubtitle"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Subtitle Text Geometry" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvSubtitleText"
+                         android:text="Medium (Default)" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelSync">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_speed"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconSync" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconSync"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Audio Delay Synchronizer" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="Fix mismatched media tracks" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_eq"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconBoost" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconBoost"
+                     android:layout_toStartOf="@+id/switchBoost"
+                     android:layout_marginEnd="16dp"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Software Audio Boost" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="Amplify sound up to 200%" />
+
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_centerVertical="true"
+                     android:layout_alignParentEnd="true"
+                     android:id="@+id/switchBoost" />
+
+            </RelativeLayout>
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginBottom="8dp"
+                 android:textSize="14sp"
+                 android:textColor="#AECBFA"
+                 android:layout_marginTop="24dp"
+                 android:layout_marginStart="24dp"
+                 android:text="Gestures and Shortcuts"
+                 android:textStyle="bold" />
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelSwipe">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_menu_preferences"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconSwipe" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconSwipe"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Swipe Interactive Gestures" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvSwipeSubtitle"
+                         android:text="Enabled" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelDoubleTap">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_media_ff"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconDoubleTap" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconDoubleTap"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Double Tap Seek Timing" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:id="@+id/tvDoubleTapSubtitle"
+                         android:text="10 seconds" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginBottom="8dp"
+                 android:textSize="14sp"
+                 android:textColor="#AECBFA"
+                 android:layout_marginTop="24dp"
+                 android:layout_marginStart="24dp"
+                 android:text="Storage and Privacy Vault"
+                 android:textStyle="bold" />
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelVault">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_lock_premium"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconVault" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconVault"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Secure Private Folder" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="Lock personal videos with PIN/Fingerprint" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelExclude">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_menu_delete"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconExclude" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconExclude"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Directory Exclusion Scan" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="Hide specific folders from gallery" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
+                 android:focusable="true"
+                 android:id="@+id/panelWipe">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@android:drawable/ic_menu_delete"
+                     android:layout_centerVertical="true"
+                     app:tint="#FF4C4C"
+                     android:id="@+id/iconWipe" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconWipe"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FF4C4C"
+                         android:text="Wipe Playback Cache"
+                         android:textStyle="bold" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="Delete history, cache and search logs" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <View
+                 android:layout_height="40dp"
+                 android:layout_width="match_parent" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>
