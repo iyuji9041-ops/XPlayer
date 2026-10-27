@@ -9,15 +9,24 @@ import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.graphics.Color
+import android.widget.EditText
 import android.widget.ImageView // FIX: Yahan ImageView import kiya hai
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.Shyam.xplayer.util.ExtractionEngine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // Video folder ka data class
 data class VideoFolder(val id: String, val name: String)
@@ -40,6 +49,11 @@ class MainActivity : AppCompatActivity() {
         rvFolders = findViewById(R.id.rvFolders)
         progressBar = findViewById(R.id.progressBar)
         
+        val btnPlayLink = findViewById<ImageView>(R.id.btnPlayLink)
+        btnPlayLink?.setOnClickListener {
+            showPlayLinkDialog()
+        }
+
         // FIX: Yahan ImageButton ki jagah ImageView lagaya hai taaki crash na ho
         val btnSettings = findViewById<ImageView>(R.id.btnSettings) 
 
@@ -56,6 +70,54 @@ class MainActivity : AppCompatActivity() {
             loadFolders()
         } else {
             requestPermissions()
+        }
+    }
+
+    private fun showPlayLinkDialog() {
+        val input = EditText(this).apply {
+            hint = "Paste video, YouTube, or web link"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#80FFFFFF"))
+            setPadding(40, 40, 40, 40)
+            background = null
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Play Online Stream")
+            .setView(input)
+            .setPositiveButton("Play") { _, _ ->
+                val url = input.text.toString().trim()
+                if (url.isNotEmpty()) {
+                    playOnlineStream(url)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun playOnlineStream(url: String) {
+        progressBar.visibility = View.VISIBLE
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val item = ExtractionEngine.extract(this@MainActivity, url)
+                val streamUrl = item.streamUrl.ifEmpty { url }
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    val intent = Intent(this@MainActivity, PlayerActivity::class.java).apply {
+                        putExtra("video_uri", streamUrl)
+                        putExtra("video_title", item.title.ifEmpty { "Online Stream" })
+                    }
+                    startActivity(intent)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    val intent = Intent(this@MainActivity, PlayerActivity::class.java).apply {
+                        putExtra("video_uri", url)
+                        putExtra("video_title", "Online Stream")
+                    }
+                    startActivity(intent)
+                }
+            }
         }
     }
 

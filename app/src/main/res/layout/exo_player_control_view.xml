@@ -26,7 +26,9 @@
             android:id="@+id/btnBack"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_glass_circle"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_arrow_left" 
             app:tint="#FFFFFF" />
 
@@ -48,24 +50,28 @@
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_centerVertical="true"
-        android:layout_marginStart="24dp"
+        android:layout_marginStart="20dp"
         android:background="@null"
         android:orientation="vertical">
 
         <ImageButton
             android:id="@+id/btnLockCustom"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_glass_circle"
+            android:padding="10dp"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_lock_premium" 
             app:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btnHeadphone"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="32dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_glass_circle"
+            android:padding="10dp"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_earbud" 
             app:tint="#FFFFFF" />
     </LinearLayout>
@@ -85,7 +91,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_marginBottom="100dp" 
+        android:layout_marginBottom="90dp" 
         android:gravity="center"
         android:overScrollMode="never"
         android:visibility="gone" />

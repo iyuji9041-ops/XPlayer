@@ -11,8 +11,8 @@ android {
         applicationId = "com.Shyam.xplayer"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         // Sirf zaroori CPU architectures rakhne se APK size kam rehta hai
         ndk {
@@ -23,6 +23,14 @@ android {
         // Naye flat vector icons ko purane Android versions par crash hone se bachata hai
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -38,6 +46,12 @@ android {
     buildFeatures {
         viewBinding = true
         compose = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     composeOptions {
@@ -63,6 +77,11 @@ dependencies {
     implementation("com.github.wseemann:FFmpegMediaMetadataRetriever-core:1.0.15")
     implementation("com.github.wseemann:FFmpegMediaMetadataRetriever-native-arm64-v8a:1.0.15")
     implementation("com.github.wseemann:FFmpegMediaMetadataRetriever-native-armeabi-v7a:1.0.15")
+
+    // yt-dlp & FFmpeg Runtime Integration
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Player ke upar gesture aur seek overlay Jetpack Compose se bana hai
     implementation("androidx.compose.ui:ui:1.6.8")

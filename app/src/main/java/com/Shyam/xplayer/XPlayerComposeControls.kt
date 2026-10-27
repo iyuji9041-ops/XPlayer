@@ -6,14 +6,19 @@ import android.media.AudioManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -21,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -29,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.videolan.libvlc.MediaPlayer
@@ -41,6 +48,35 @@ fun formatTime(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
+}
+
+/**
+ * Reusable Glass Circle Icon Button from Player 2 design.
+ */
+@Composable
+fun GlassCircleButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 44.dp,
+    containerColor: Color = Color(0x331E293B),
+    borderColor: Color = Color(0x33FFFFFF),
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(containerColor)
+            .border(1.dp, borderColor, CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true, color = Color.White),
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
 }
 
 @Composable
@@ -64,9 +100,14 @@ fun XPlayerComposeControls(
     var isDraggingSlider by remember { mutableStateOf(false) }
     var isPlayReadyState by remember { mutableStateOf(player?.isPlaying ?: false) }
 
+    // Feedback overlay states
     var swipeFeedbackText by remember { mutableStateOf("") }
     var showFeedback by remember { mutableStateOf(false) }
-    var feedbackTrigger by remember { mutableStateOf(0) } 
+    var feedbackTrigger by remember { mutableStateOf(0) }
+
+    // 🟢 Long press 2X Speed state
+    var isLongPress2X by remember { mutableStateOf(false) }
+    var savedSpeedBeforeLongPress by remember { mutableStateOf(1.0f) }
 
     LaunchedEffect(player) {
         while (true) {
@@ -118,14 +159,32 @@ fun XPlayerComposeControls(
                         if (offset.x < size.width / 2) {
                             val target = (currentPos - 10000L).coerceAtLeast(0L)
                             player?.time = target
-                            swipeFeedbackText = " -10s"
+                            swipeFeedbackText = "⏪ -10s"
                         } else {
                             val target = (currentPos + 10000L).coerceAtMost(totalTime)
                             player?.time = target
-                            swipeFeedbackText = " +10s"
+                            swipeFeedbackText = "⏩ +10s"
                         }
                         showFeedback = true
                         feedbackTrigger++ 
+                    },
+                    // 🟢 Long press to play at 2X speed!
+                    onLongPress = {
+                        if (player?.isPlaying == true) {
+                            savedSpeedBeforeLongPress = player.rate
+                            player.rate = 2.0f
+                            isLongPress2X = true
+                        }
+                    },
+                    onPress = {
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            if (isLongPress2X) {
+                                player?.rate = savedSpeedBeforeLongPress
+                                isLongPress2X = false
+                            }
+                        }
                     }
                 )
             }
@@ -197,11 +256,51 @@ fun XPlayerComposeControls(
 
     Box(modifier = modifier.then(gestureModifier)) {
         
+        // 🟢 Floating 2X Speed HUD at Top Center
+        AnimatedVisibility(
+            visible = isLongPress2X,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 28.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xD91E293B))
+                    .border(1.dp, Color(0x666366F1), RoundedCornerShape(24.dp))
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        painterResource(android.R.drawable.ic_media_ff),
+                        contentDescription = null,
+                        tint = Color(0xFF818CF8),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "2× Playback Speed",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Gesture feedback overlay (seek, volume, brightness)
         if (showFeedback) {
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.medium)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xB3000000))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             ) {
                 Text(
@@ -213,6 +312,7 @@ fun XPlayerComposeControls(
             }
         }
 
+        // Bottom Controls Bar with Glass Circle Buttons
         AnimatedVisibility(
             visible = showUi && !isLocked, 
             enter = fadeIn(),
@@ -226,41 +326,68 @@ fun XPlayerComposeControls(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 
-                IconButton(onClick = { onInteract(); onPrevClick() }) {
-                    Icon(painterResource(android.R.drawable.ic_media_previous), contentDescription = "Previous", tint = Color.White)
+                // 🟢 Previous Button in Glass Circle
+                GlassCircleButton(
+                    size = 42.dp,
+                    onClick = { onInteract(); onPrevClick() }
+                ) {
+                    Icon(
+                        painterResource(android.R.drawable.ic_media_previous),
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
                 
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
-                        .clickable { 
-                            onInteract()
-                            if (player?.isPlaying == true) {
-                                player.pause()
-                                isPlayReadyState = false
-                            } else {
-                                player?.play()
-                                isPlayReadyState = true
-                            }
-                        },
-                    contentAlignment = Alignment.Center
+                // 🟢 Play / Pause Button in Elegant Glass Circle
+                GlassCircleButton(
+                    size = 52.dp,
+                    containerColor = Color(0x4D1E293B),
+                    borderColor = Color(0x4DFFFFFF),
+                    onClick = { 
+                        onInteract()
+                        if (player?.isPlaying == true) {
+                            player.pause()
+                            isPlayReadyState = false
+                        } else {
+                            player?.play()
+                            isPlayReadyState = true
+                        }
+                    }
                 ) {
                     Icon(
                         painterResource(if (isPlayReadyState) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play), 
                         contentDescription = "Play/Pause", 
                         tint = Color.White,
-                        modifier = Modifier.size(32.dp) 
+                        modifier = Modifier.size(28.dp) 
                     )
-                }
-
-                IconButton(onClick = { onInteract(); onNextClick() }) {
-                    Icon(painterResource(android.R.drawable.ic_media_next), contentDescription = "Next", tint = Color.White)
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Text(text = formatTime(currentTime), color = Color.White, fontSize = 14.sp)
+                // 🟢 Next Button in Glass Circle
+                GlassCircleButton(
+                    size = 42.dp,
+                    onClick = { onInteract(); onNextClick() }
+                ) {
+                    Icon(
+                        painterResource(android.R.drawable.ic_media_next),
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = formatTime(currentTime),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
 
                 Slider(
                     value = if (totalTime > 0) currentTime.toFloat() / totalTime.toFloat() else 0f,
@@ -275,15 +402,20 @@ fun XPlayerComposeControls(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 10.dp),
                     colors = SliderDefaults.colors(
                         thumbColor = Color.White,
                         activeTrackColor = Color(0xFFAECBFA), 
-                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        inactiveTrackColor = Color.White.copy(alpha = 0.25f)
                     )
                 )
 
-                Text(text = formatTime(totalTime), color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                Text(
+                    text = formatTime(totalTime),
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
