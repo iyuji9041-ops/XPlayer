@@ -10,7 +10,9 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -31,17 +33,49 @@ class VideosListActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // FIX: same edge-to-edge issue jo pehle thumbnails ke upar status bar time overlap kar raha tha
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_videos_list)
 
         val folderId = intent.getStringExtra("folder_id")
+        val folderName = intent.getStringExtra("folder_name") ?: "Videos"
+
+        val tvFolderTitle = findViewById<TextView>(R.id.tvFolderTitle)
+        val tvVideoCount = findViewById<TextView>(R.id.tvVideoCount)
+        val btnBackVideos = findViewById<ImageView>(R.id.btnBackVideos)
+        val topHeader = findViewById<View>(R.id.top_header_videos)
         val rvVideos = findViewById<RecyclerView>(R.id.rvVideos)
+        val rootLayout = findViewById<View>(R.id.videosListRoot)
+
+        tvFolderTitle.text = folderName
+        btnBackVideos.setOnClickListener { finish() }
+
+        // Dynamic WindowInsets padding for Xiaomi HyperOS & Android 14/15 edge-to-edge
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { _, insets ->
+            val statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val density = resources.displayMetrics.density
+            topHeader.setPadding(
+                (16 * density).toInt(),
+                statusBar.top + (8 * density).toInt(),
+                (16 * density).toInt(),
+                (8 * density).toInt()
+            )
+            rvVideos.setPadding(
+                (12 * density).toInt(),
+                (4 * density).toInt(),
+                (12 * density).toInt(),
+                navBar.bottom + (16 * density).toInt()
+            )
+            insets
+        }
+
         rvVideos.layoutManager = LinearLayoutManager(this)
 
         if (folderId != null) {
             loadVideos(folderId)
         }
+
+        tvVideoCount.text = "${videosList.size} videos"
 
         rvVideos.adapter = VideoAdapter(videosList) { video ->
             val intent = Intent(this, PlayerActivity::class.java)

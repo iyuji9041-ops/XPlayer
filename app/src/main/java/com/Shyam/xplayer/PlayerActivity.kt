@@ -31,6 +31,10 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.videolan.libvlc.LibVLC
@@ -65,9 +69,16 @@ class PlayerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        // Edge-to-edge & immersive full screen for modern Android & Xiaomi HyperOS
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
@@ -75,8 +86,33 @@ class PlayerActivity : AppCompatActivity() {
 
         videoLayout = findViewById(R.id.video_layout)
         
+        // Ensure top control bar is padded correctly for status bar / camera punch hole on Xiaomi HyperOS
+        val topBar = findViewById<View>(R.id.top_bar)
+        topBar?.let { bar ->
+            ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+                val cutoutOrStatus = insets.getInsets(
+                    WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
+                )
+                val density = resources.displayMetrics.density
+                val padH = (16 * density).toInt()
+                val padTop = cutoutOrStatus.top + (8 * density).toInt()
+                val padBottom = (8 * density).toInt()
+                v.setPadding(cutoutOrStatus.left + padH, padTop, cutoutOrStatus.right + padH, padBottom)
+                insets
+            }
+        }
+
         setupPlayer()
         setupRealButtonLogic()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     private fun applyFlatGlassStyle(dialog: AlertDialog) {
@@ -526,7 +562,7 @@ class PlayerActivity : AppCompatActivity() {
             libVlc = LibVLC(this, args)
             vlcPlayer = MediaPlayer(libVlc)
             
-            vlcPlayer?.attachViews(videoLayout, null, false, false)
+            safeAttachViews()
 
             val videoPath = intent.getStringExtra("video_uri")
             if (videoPath != null) {
@@ -538,12 +574,30 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    private fun safeAttachViews() {
+        try {
+            if (vlcPlayer?.areViewsAttached() == false) {
+                vlcPlayer?.attachViews(videoLayout, null, false, false)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun safeDetachViews() {
+        try {
+            if (vlcPlayer?.areViewsAttached() == true) {
+                vlcPlayer?.detachViews()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
-        // FIX: onStop mein surface detach hua tha (Android usse destroy kar deta hai jab Activity
-        // dikhna band ho jaati hai, jaise Settings pe jaate waqt). Wapas aane par usse dobara
-        // attach karna zaroori hai, warna video black rehta hai jabki audio chalti rehti hai.
-        vlcPlayer?.attachViews(videoLayout, null, false, false)
+        // Safely re-attach surface only if not already attached (prevents HyperOS/Android 14+ crash)
+        safeAttachViews()
 
         val sharedPref = getSharedPreferences("XPlayerSettings", Context.MODE_PRIVATE)
         val speedIndex = sharedPref.getInt("default_speed_index", 2)
@@ -557,9 +611,7 @@ class PlayerActivity : AppCompatActivity() {
         if (!isAudioOnly) {
             vlcPlayer?.pause()
         }
-        // FIX: Video surface ko cleanly detach karo taaki VLC ko pata rahe ki render target
-        // ab valid nahi hai — isse hi onResume mein attachViews() dobara call karna padta hai
-        vlcPlayer?.detachViews()
+        safeDetachViews()
     }
 
     override fun onDestroy() {
@@ -567,8 +619,14 @@ class PlayerActivity : AppCompatActivity() {
         saveCurrentProgress() 
         sleepRunnable?.let { sleepHandler.removeCallbacks(it) }
         uiHideRunnable?.let { uiHideHandler.removeCallbacks(it) }
-        vlcPlayer?.release()
-        libVlc?.release()
+        safeDetachViews()
+        try {
+            vlcPlayer?.stop()
+            vlcPlayer?.release()
+            libVlc?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     inner class PlaylistAdapter(

@@ -16,3 +16,8 @@
 
 # Logs & temp files
 *.log
+
+spot_backup/
+novaget_repo/
+attachments/
+

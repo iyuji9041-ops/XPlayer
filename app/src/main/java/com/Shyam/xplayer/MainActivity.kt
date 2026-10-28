@@ -19,7 +19,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.Shyam.xplayer.util.ExtractionEngine
@@ -40,18 +42,40 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // FIX: targetSdk 36 par Android khud edge-to-edge force karta hai, jisse "Video Folders"
-        // title status bar ke peeche chala jaata hai. Isse off karke purana safe behavior wapas laate hain.
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+        // Modern edge-to-edge support for Xiaomi HyperOS & Android 14/15
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
         // UI IDs Map kar rahe hain
         rvFolders = findViewById(R.id.rvFolders)
         progressBar = findViewById(R.id.progressBar)
+        val mainRoot = findViewById<View>(R.id.mainRoot)
+        val topHeader = findViewById<View>(R.id.top_header)
+
+        // Dynamic status bar and navigation bar insets padding (No more status bar overlap on HyperOS!)
+        ViewCompat.setOnApplyWindowInsetsListener(mainRoot) { _, insets ->
+            val statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val density = resources.displayMetrics.density
+            topHeader.setPadding(
+                (24 * density).toInt(),
+                statusBar.top + (12 * density).toInt(),
+                (24 * density).toInt(),
+                (12 * density).toInt()
+            )
+            rvFolders.setPadding(
+                rvFolders.paddingLeft,
+                rvFolders.paddingTop,
+                rvFolders.paddingRight,
+                navBar.bottom + (16 * density).toInt()
+            )
+            insets
+        }
         
         val btnPlayLink = findViewById<ImageView>(R.id.btnPlayLink)
         btnPlayLink?.setOnClickListener {
-            showPlayLinkDialog()
+            // Launch beautiful NovaGet-style Online Stream & Downloader Activity!
+            startActivity(Intent(this, OnlineStreamActivity::class.java))
         }
 
         // FIX: Yahan ImageButton ki jagah ImageView lagaya hai taaki crash na ho

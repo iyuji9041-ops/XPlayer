@@ -2,6 +2,7 @@ package com.Shyam.xplayer
 
 import android.content.Context
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageButton
 import android.widget.RelativeLayout
 import android.widget.TextView
@@ -9,12 +10,33 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 
 class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_settings)
+
+        val settingsRoot = findViewById<View>(R.id.settingsRoot)
+        val settingsHeader = findViewById<View>(R.id.settingsHeader)
+
+        ViewCompat.setOnApplyWindowInsetsListener(settingsRoot) { _, insets ->
+            val statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val density = resources.displayMetrics.density
+            settingsHeader.setPadding(
+                (16 * density).toInt(),
+                statusBar.top + (8 * density).toInt(),
+                (16 * density).toInt(),
+                (12 * density).toInt()
+            )
+            settingsRoot.setPadding(0, 0, 0, navBar.bottom)
+            insets
+        }
 
         val btnBack = findViewById<ImageButton>(R.id.btnBackSettings)
         btnBack.setOnClickListener { finish() }
