@@ -55,6 +55,7 @@ class PlayerActivity : AppCompatActivity() {
     private var isLocked = false
     private val isLockedState = mutableStateOf(false)
     private var isAudioOnly = false
+    private var areViewsAttached = false
 
     private val sleepHandler = Handler(Looper.getMainLooper())
     private var sleepRunnable: Runnable? = null
@@ -576,8 +577,9 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun safeAttachViews() {
         try {
-            if (vlcPlayer?.areViewsAttached() == false) {
+            if (!areViewsAttached && vlcPlayer != null) {
                 vlcPlayer?.attachViews(videoLayout, null, false, false)
+                areViewsAttached = true
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -586,8 +588,9 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun safeDetachViews() {
         try {
-            if (vlcPlayer?.areViewsAttached() == true) {
+            if (areViewsAttached && vlcPlayer != null) {
                 vlcPlayer?.detachViews()
+                areViewsAttached = false
             }
         } catch (e: Exception) {
             e.printStackTrace()
