@@ -1,8 +1,11 @@
 package com.Shyam.xplayer
 
 import android.content.Context
+import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.RelativeLayout
 import android.widget.TextView
@@ -13,6 +16,8 @@ import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.Shyam.xplayer.vault.VaultActivity
+import com.Shyam.xplayer.vault.VaultSecurityManager
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -41,13 +46,10 @@ class SettingsActivity : AppCompatActivity() {
         val btnBack = findViewById<ImageButton>(R.id.btnBackSettings)
         btnBack.setOnClickListener { finish() }
 
-        // ==========================================
-        // SHAREDPREFERENCES (App Ki Memory)
-        // ==========================================
         val sharedPref = getSharedPreferences("XPlayerSettings", Context.MODE_PRIVATE)
         val editor = sharedPref.edit()
 
-        // 🟢 1. Playback Speed
+        // 1. Playback Speed
         val speedOptions = arrayOf("0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "2.0x")
         var currentSpeedIndex = sharedPref.getInt("default_speed_index", 2)
         val tvSpeedSubtitle = findViewById<TextView>(R.id.tvSpeedSubtitle)
@@ -64,7 +66,7 @@ class SettingsActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // 🟢 2. Auto-Resume Control
+        // 2. Auto-Resume Control
         val resumeOptions = arrayOf("Always resume from last position", "Ask before resuming", "Start from beginning")
         var currentResumeIndex = sharedPref.getInt("auto_resume_mode", 0)
         val tvResumeSubtitle = findViewById<TextView>(R.id.tvResumeSubtitle)
@@ -81,7 +83,7 @@ class SettingsActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // 🟢 3. Hardware Decoder
+        // 3. Hardware Decoder
         val hwOptions = arrayOf("Hardware Acceleration (HW)", "Software Decoding (SW)")
         var currentHwIndex = sharedPref.getInt("hw_decoder_mode", 0)
         val tvHwSubtitle = findViewById<TextView>(R.id.tvHwSubtitle)
@@ -98,7 +100,7 @@ class SettingsActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // 🟢 4. UI Timeout
+        // 4. UI Timeout
         val timeoutOptions = arrayOf("Auto-hide after 3 seconds", "Auto-hide after 5 seconds", "Never hide (Always visible)")
         var currentTimeoutIndex = sharedPref.getInt("ui_timeout_mode", 1)
         val tvTimeoutSubtitle = findViewById<TextView>(R.id.tvTimeoutSubtitle)
@@ -115,7 +117,7 @@ class SettingsActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // 🟢 5. Double Tap Time
+        // 5. Double Tap Time
         val tapOptions = arrayOf("5 seconds", "10 seconds", "15 seconds")
         var currentTapIndex = sharedPref.getInt("double_tap_time", 1)
         val tvDoubleTapSubtitle = findViewById<TextView>(R.id.tvDoubleTapSubtitle)
@@ -132,7 +134,7 @@ class SettingsActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // 🟢 6. Themes
+        // 6. Themes
         val themeOptions = arrayOf("Deep AMOLED Dark", "Material Dark", "Light Mode (Beta)")
         var currentThemeIndex = sharedPref.getInt("app_theme_mode", 0)
         val tvThemeSubtitle = findViewById<TextView>(R.id.tvThemeSubtitle)
@@ -150,34 +152,101 @@ class SettingsActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // 🟢 7. Simple Popups (Coming Soon / Simple Actions)
+        // 7. Subtitle Customization
+        val subSizes = arrayOf("Small (14sp)", "Medium (18sp)", "Large (22sp)", "Extra Large (26sp)")
+        val tvSubSubtitle = findViewById<TextView>(R.id.tvSubtitleDesc)
+        val currentSubSize = sharedPref.getInt("subtitle_size", 1)
+        tvSubSubtitle?.text = "Font size: ${subSizes[currentSubSize]}"
+
         findViewById<RelativeLayout>(R.id.panelSubtitle).setOnClickListener {
-            Toast.makeText(this, "Subtitle Geometry Editor opening...", Toast.LENGTH_SHORT).show()
+            AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+                .setTitle("Subtitle Font Size")
+                .setSingleChoiceItems(subSizes, sharedPref.getInt("subtitle_size", 1)) { dialog, which ->
+                    editor.putInt("subtitle_size", which).apply()
+                    tvSubSubtitle?.text = "Font size: ${subSizes[which]}"
+                    Toast.makeText(this, "Subtitle size updated", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                }.show()
         }
         
+        // 8. Audio Sync Delay
+        val syncOptions = arrayOf("-500 ms", "-250 ms", "0 ms (Normal)", "+250 ms", "+500 ms")
+        val syncValues = longArrayOf(-500L, -250L, 0L, 250L, 500L)
+        val currentDelayMs = sharedPref.getLong("audio_delay_ms", 0L)
+        val tvSyncSubtitle = findViewById<TextView>(R.id.tvSyncSubtitle)
+        tvSyncSubtitle?.text = "Current delay: ${currentDelayMs}ms"
+
         findViewById<RelativeLayout>(R.id.panelSync).setOnClickListener {
-            Toast.makeText(this, "Audio Sync Dialog coming soon!", Toast.LENGTH_SHORT).show()
+            val currentIndex = syncValues.indexOfFirst { it == currentDelayMs }.coerceAtLeast(2)
+            AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+                .setTitle("Audio Delay / Sync")
+                .setSingleChoiceItems(syncOptions, currentIndex) { dialog, which ->
+                    val selectedDelay = syncValues[which]
+                    editor.putLong("audio_delay_ms", selectedDelay).apply()
+                    tvSyncSubtitle?.text = "Current delay: ${selectedDelay}ms"
+                    Toast.makeText(this, "Audio sync adjusted to ${selectedDelay}ms", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                }.show()
         }
+
+        // 9. Swipe Gestures Toggle
+        val swipeEnabled = sharedPref.getBoolean("swipe_gestures", true)
+        val tvSwipeSubtitle = findViewById<TextView>(R.id.tvSwipeSubtitle)
+        tvSwipeSubtitle?.text = if (swipeEnabled) "Swipe for brightness & volume enabled" else "Swipe gestures disabled"
 
         findViewById<RelativeLayout>(R.id.panelSwipe).setOnClickListener {
-            Toast.makeText(this, "Swipe Gestures are currently locked to ON", Toast.LENGTH_SHORT).show()
+            val newState = !sharedPref.getBoolean("swipe_gestures", true)
+            editor.putBoolean("swipe_gestures", newState).apply()
+            tvSwipeSubtitle?.text = if (newState) "Swipe for brightness & volume enabled" else "Swipe gestures disabled"
+            Toast.makeText(this, if (newState) "Swipe gestures enabled" else "Swipe gestures disabled", Toast.LENGTH_SHORT).show()
         }
+
+        // 10. Private Vault
+        val tvVaultSubtitle = findViewById<TextView>(R.id.tvVaultSubtitle)
+        val isVaultReady = VaultSecurityManager.isVaultSetup(this)
+        tvVaultSubtitle?.text = if (isVaultReady) "AES-256 PIN Protected" else "Tap to set up secure vault"
 
         findViewById<RelativeLayout>(R.id.panelVault).setOnClickListener {
-            Toast.makeText(this, "Vault Setup: Please create a PIN first.", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, VaultActivity::class.java))
         }
 
+        // 11. Excluded Folders
         findViewById<RelativeLayout>(R.id.panelExclude).setOnClickListener {
-            Toast.makeText(this, "No excluded folders found.", Toast.LENGTH_SHORT).show()
+            val excludedSet = sharedPref.getStringSet("excluded_folders", emptySet()) ?: emptySet()
+            if (excludedSet.isEmpty()) {
+                AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+                    .setTitle("Excluded Folders")
+                    .setMessage("No folders are currently excluded. Folders can be hidden to keep them out of your media lists.")
+                    .setPositiveButton("OK", null)
+                    .show()
+            } else {
+                val list = excludedSet.toTypedArray()
+                AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+                    .setTitle("Excluded Folders (${list.size})")
+                    .setItems(list) { _, which ->
+                        AlertDialog.Builder(this)
+                            .setTitle("Unhide folder?")
+                            .setMessage("Remove '${list[which]}' from excluded list?")
+                            .setPositiveButton("Remove") { _, _ ->
+                                val newSet = HashSet(excludedSet)
+                                newSet.remove(list[which])
+                                editor.putStringSet("excluded_folders", newSet).apply()
+                                Toast.makeText(this, "Folder unhidden", Toast.LENGTH_SHORT).show()
+                            }
+                            .setNegativeButton("Cancel", null)
+                            .show()
+                    }
+                    .setNegativeButton("Close", null)
+                    .show()
+            }
         }
 
-        // 🟢 8. WIPE PLAYBACK CACHE (Ye asali function hai jo Video History delete karega)
+        // 12. Wipe Playback Cache
         findViewById<RelativeLayout>(R.id.panelWipe).setOnClickListener {
             AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
                 .setTitle("Wipe Playback Cache?")
                 .setMessage("This will delete all your watched video history and resume positions. This cannot be undone.")
                 .setPositiveButton("Wipe") { _, _ ->
-                    // VideoProgress naam ki history ko memory se delete karna
                     getSharedPreferences("VideoProgress", Context.MODE_PRIVATE).edit().clear().apply()
                     Toast.makeText(this, "All history and cache deleted successfully!", Toast.LENGTH_LONG).show()
                 }
@@ -185,12 +254,14 @@ class SettingsActivity : AppCompatActivity() {
                 .show()
         }
 
-        // 🟢 9. Switches
+        // 13. Switches
         val switchBgAudio = findViewById<SwitchCompat>(R.id.switchBgAudio)
         val switchBoost = findViewById<SwitchCompat>(R.id.switchBoost)
+        val switchQuickPanel = findViewById<SwitchCompat>(R.id.switchQuickPanel)
 
         switchBgAudio.isChecked = sharedPref.getBoolean("bg_audio", false)
         switchBoost.isChecked = sharedPref.getBoolean("audio_boost", false)
+        switchQuickPanel?.isChecked = sharedPref.getBoolean("quick_panel_enabled", true)
 
         switchBgAudio.setOnCheckedChangeListener { _, isChecked ->
             editor.putBoolean("bg_audio", isChecked).apply()
@@ -198,6 +269,19 @@ class SettingsActivity : AppCompatActivity() {
         
         switchBoost.setOnCheckedChangeListener { _, isChecked ->
             editor.putBoolean("audio_boost", isChecked).apply()
+            Toast.makeText(this, if (isChecked) "Audio boost up to 200% enabled" else "Audio boost disabled", Toast.LENGTH_SHORT).show()
         }
+
+        switchQuickPanel?.setOnCheckedChangeListener { _, isChecked ->
+            editor.putBoolean("quick_panel_enabled", isChecked).apply()
+            Toast.makeText(this, if (isChecked) "YouTube Quick Panel enabled" else "Default dialog mode", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val tvVaultSubtitle = findViewById<TextView>(R.id.tvVaultSubtitle)
+        val isVaultReady = VaultSecurityManager.isVaultSetup(this)
+        tvVaultSubtitle?.text = if (isVaultReady) "AES-256 PIN Protected" else "Tap to set up secure vault"
     }
 }

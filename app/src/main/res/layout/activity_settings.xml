@@ -271,6 +271,59 @@
                  android:clickable="true"
                  android:paddingVertical="16dp"
                  android:paddingHorizontal="24dp"
+                 android:focusable="true">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_settings_gear"
+                     android:layout_centerVertical="true"
+                     app:tint="#B3FFFFFF"
+                     android:id="@+id/iconQuickPanel" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_toEndOf="@id/iconQuickPanel"
+                     android:layout_toStartOf="@+id/switchQuickPanel"
+                     android:layout_marginEnd="16dp"
+                     android:layout_centerVertical="true"
+                     android:orientation="vertical"
+                     android:layout_marginStart="20dp">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Quick Control Panel" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="13sp"
+                         android:textColor="#80FFFFFF"
+                         android:layout_marginTop="2dp"
+                         android:text="YouTube style menu for speed, CC, audio, timer" />
+
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_centerVertical="true"
+                     android:layout_alignParentEnd="true"
+                     android:id="@+id/switchQuickPanel" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="?attr/selectableItemBackground"
+                 android:clickable="true"
+                 android:paddingVertical="16dp"
+                 android:paddingHorizontal="24dp"
                  android:focusable="true"
                  android:id="@+id/panelTheme">
 

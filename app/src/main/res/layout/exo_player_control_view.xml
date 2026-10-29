@@ -11,6 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Top Bar with Back & Video Title -->
     <LinearLayout
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
@@ -19,15 +20,15 @@
         android:background="#40000000" 
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="24dp"
         android:paddingVertical="12dp">
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:background="@drawable/bg_glass_circle"
-            android:padding="8dp"
+            android:padding="9dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_arrow_left" 
             app:tint="#FFFFFF" />
@@ -43,38 +44,67 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:fontFamily="sans-serif-medium" />
+
+        <ImageButton
+            android:id="@+id/btnQuickSettingsCorner"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_glass_circle"
+            android:padding="9dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_settings_gear" 
+            app:tint="#FFFFFF" />
     </LinearLayout>
 
+    <!-- Side Buttons (Lock & Earbud) padded inward from horizontal screen edge -->
     <LinearLayout
+        android:id="@+id/layoutSideLeftButtons"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_centerVertical="true"
-        android:layout_marginStart="20dp"
+        android:layout_marginStart="36dp"
         android:background="@null"
         android:orientation="vertical">
 
         <ImageButton
             android:id="@+id/btnLockCustom"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/bg_glass_circle"
-            android:padding="10dp"
+            android:padding="11dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_lock_premium" 
             app:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btnHeadphone"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:layout_marginTop="20dp"
             android:background="@drawable/bg_glass_circle"
-            android:padding="10dp"
+            android:padding="11dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_earbud" 
             app:tint="#FFFFFF" />
     </LinearLayout>
+
+    <!-- Top Left Lock Button for Locked Mode -->
+    <ImageButton
+        android:id="@+id/btnLockTopLeft"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="36dp"
+        android:layout_marginTop="28dp"
+        android:background="@drawable/bg_glass_circle"
+        android:padding="11dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_lock_premium"
+        android:visibility="gone"
+        app:tint="#FF5252" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_side_buttons"

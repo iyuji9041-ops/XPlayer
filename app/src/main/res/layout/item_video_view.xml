@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/videoItemRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
@@ -8,14 +9,26 @@
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
+    android:paddingHorizontal="14dp"
     android:paddingVertical="12dp">
 
+    <!-- Selection Checkbox for Multi-Select Delete Mode -->
+    <CheckBox
+        android:id="@+id/cbSelectVideo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:buttonTint="#818CF8"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <!-- Video Thumbnail with Duration Badge and Watched Progress -->
     <androidx.cardview.widget.CardView
-        android:layout_width="120dp"
-        android:layout_height="70dp"
-        app:cardBackgroundColor="#222222"
-        app:cardCornerRadius="8dp"
+        android:layout_width="145dp"
+        android:layout_height="86dp"
+        app:cardBackgroundColor="#1A2433"
+        app:cardCornerRadius="10dp"
         app:cardElevation="0dp">
 
         <RelativeLayout
@@ -27,13 +40,43 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop" />
+
+            <!-- Duration Badge Overlay -->
+            <TextView
+                android:id="@+id/tvThumbnailDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentEnd="true"
+                android:layout_margin="6dp"
+                android:background="#CC000000"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:text="00:00"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- Unfinished Video Progress Bar -->
+            <ProgressBar
+                android:id="@+id/progressVideoWatched"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_alignParentBottom="true"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#818CF8"
+                android:visibility="gone" />
         </RelativeLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Video Details -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
         android:orientation="vertical">
 
         <TextView
@@ -43,16 +86,50 @@
             android:ellipsize="end"
             android:maxLines="2"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvVideoFormat"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:maxLines="1"
-            android:textColor="#8AB4F8"
-            android:textSize="12sp" />
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvVideoFormat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#8AB4F8"
+                android:textSize="13sp" />
+
+            <!-- Highlight Tag for Unfinished / Partially Watched Video -->
+            <TextView
+                android:id="@+id/tvResumeBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/circle_background"
+                android:backgroundTint="#33818CF8"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"
+                android:text="Resume"
+                android:textColor="#AECBFA"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
+
+    <!-- 3-Dot Options Button -->
+    <ImageButton
+        android:id="@+id/btnVideoOptions"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@android:drawable/ic_menu_more"
+        app:tint="#80FFFFFF" />
+
 </LinearLayout>

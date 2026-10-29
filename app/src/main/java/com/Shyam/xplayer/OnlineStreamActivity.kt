@@ -107,7 +107,7 @@ fun OnlineStreamScreen(
 
     // OTA Update Button state
     var isUpdatingEngine by remember { mutableStateOf(false) }
-    var otaButtonLabel by remember { mutableStateOf("🔄 OTA Update") }
+    var otaButtonLabel by remember { mutableStateOf("OTA Update") }
 
     // Filter category: "ALL", "VIDEO", "AUDIO"
     var selectedCategory by remember { mutableStateOf("ALL") }
@@ -164,7 +164,7 @@ fun OnlineStreamScreen(
             val result = ExtractionEngine.updateEngine(context)
             withContext(Dispatchers.Main) {
                 isUpdatingEngine = false
-                otaButtonLabel = "✓ Up to date"
+                otaButtonLabel = "Up to date"
                 Toast.makeText(context, result, Toast.LENGTH_LONG).show()
             }
         }
@@ -280,7 +280,7 @@ fun OnlineStreamScreen(
                     }
 
                     // Frosted OTA Update Pill Button
-                    val isUpdated = otaButtonLabel.contains("Up to date") || otaButtonLabel.contains("✓")
+                    val isUpdated = otaButtonLabel.contains("Up to date")
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))

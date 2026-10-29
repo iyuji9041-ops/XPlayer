@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/folderCardRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="20dp"
+    android:layout_marginHorizontal="16dp"
     android:layout_marginVertical="8dp"
     android:background="@drawable/bg_flat_card"
     android:clickable="true"
@@ -10,36 +12,94 @@
     android:foreground="?attr/selectableItemBackground"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="16dp">
+    android:padding="18dp">
 
-    <!-- Icon inside a circular background -->
-    <ImageView
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="@drawable/circle_background"
-        android:backgroundTint="#26FFFFFF" 
-        android:padding="12dp"
-        android:src="@drawable/ic_flat_folder"
-        android:tint="#FFFFFF" />
+    <!-- Folder Icon with Accent Aura -->
+    <RelativeLayout
+        android:layout_width="56dp"
+        android:layout_height="56dp">
 
-    <!-- Folder Name -->
-    <TextView
-        android:id="@+id/tvFolderName"
+        <ImageView
+            android:id="@+id/imgFolderBg"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/circle_background"
+            android:backgroundTint="#26FFFFFF"
+            android:padding="14dp"
+            android:src="@drawable/ic_flat_folder"
+            app:tint="#FFFFFF" />
+
+        <!-- Glow Dot when folder contains unfinished videos -->
+        <View
+            android:id="@+id/viewFolderUnfinishedDot"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentTop="true"
+            android:background="@drawable/circle_background"
+            android:backgroundTint="#818CF8"
+            android:visibility="gone" />
+    </RelativeLayout>
+
+    <!-- Folder Details -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="18dp"
         android:layout_weight="1"
-        android:layout_marginStart="16dp"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:maxLines="1"
-        android:ellipsize="end" />
-        
-    <!-- Chhota sa arrow right side mein (Optional for modern look) -->
-    <ImageView
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:src="@android:drawable/ic_media_play"
-        android:tint="#4DFFFFFF" />
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvFolderName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvFolderCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 videos"
+                android:textColor="#80FFFFFF"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/tvFolderResumeTag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/circle_background"
+                android:backgroundTint="#33818CF8"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:text="Unfinished Videos"
+                android:textColor="#AECBFA"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- More / Delete Options Button -->
+    <ImageButton
+        android:id="@+id/btnFolderOptions"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@android:drawable/ic_menu_more"
+        app:tint="#80FFFFFF" />
 
 </LinearLayout>

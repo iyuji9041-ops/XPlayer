@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -45,13 +44,18 @@ import kotlin.math.abs
 fun formatTime(ms: Long): String {
     if (ms < 0) return "00:00"
     val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    return if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
 }
 
 /**
- * Reusable Glass Circle Icon Button from Player 2 design.
+ * Reusable Glass Circle Icon Button.
  */
 @Composable
 fun GlassCircleButton(
@@ -83,17 +87,27 @@ fun GlassCircleButton(
 fun XPlayerComposeControls(
     player: MediaPlayer?,
     showUi: Boolean,
-    isLocked: Boolean = false, 
+    isLocked: Boolean = false,
+    isZooming: Boolean = false,
     onSwipe: () -> Unit = {},
     onTapScreen: () -> Unit = {},
-    onInteract: () -> Unit = {}, 
-    onNextClick: () -> Unit = {}, 
-    onPrevClick: () -> Unit = {}, 
+    onInteract: () -> Unit = {},
+    onNextClick: () -> Unit = {},
+    onPrevClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    val sharedPrefs = remember { context.getSharedPreferences("XPlayerSettings", Context.MODE_PRIVATE) }
+    val doubleTapSetting = remember { sharedPrefs.getInt("double_tap_time", 1) }
+    val doubleTapSeekMs = when (doubleTapSetting) {
+        0 -> 5000L
+        1 -> 10000L
+        else -> 15000L
+    }
+    val swipeEnabled = remember { sharedPrefs.getBoolean("swipe_gestures", true) }
 
     var currentTime by remember { mutableStateOf(0L) }
     var totalTime by remember { mutableStateOf(0L) }
@@ -105,7 +119,7 @@ fun XPlayerComposeControls(
     var showFeedback by remember { mutableStateOf(false) }
     var feedbackTrigger by remember { mutableStateOf(0) }
 
-    // 🟢 Long press 2X Speed state
+    // Long press 2X Speed state
     var isLongPress2X by remember { mutableStateOf(false) }
     var savedSpeedBeforeLongPress by remember { mutableStateOf(1.0f) }
 
@@ -138,39 +152,46 @@ fun XPlayerComposeControls(
     var targetSeekPos by remember { mutableStateOf(0L) }
 
     var gestureModifier = Modifier.fillMaxSize().background(Color.Transparent)
-    
-    if (isLocked) {
-        gestureModifier = gestureModifier.pointerInput(isLocked) {
+
+    if (isLocked || isZooming) {
+        // When locked or during 2-finger zoom gesture, disable all player controls completely
+        gestureModifier = gestureModifier.pointerInput(isLocked, isZooming) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
-                    event.changes.forEach { it.consume() }
+                    if (isLocked) {
+                        event.changes.forEach { it.consume() }
+                    }
                 }
             }
         }
     } else {
         gestureModifier = gestureModifier
-            .pointerInput(isLocked) {
+            .pointerInput(isLocked, isZooming) {
                 detectTapGestures(
-                    onTap = { onTapScreen() },
-                    onDoubleTap = { offset ->
-                        onInteract() 
-                        val currentPos = player?.time ?: 0L
-                        if (offset.x < size.width / 2) {
-                            val target = (currentPos - 10000L).coerceAtLeast(0L)
-                            player?.time = target
-                            swipeFeedbackText = "⏪ -10s"
-                        } else {
-                            val target = (currentPos + 10000L).coerceAtMost(totalTime)
-                            player?.time = target
-                            swipeFeedbackText = "⏩ +10s"
-                        }
-                        showFeedback = true
-                        feedbackTrigger++ 
+                    onTap = { 
+                        if (!isZooming) onTapScreen() 
                     },
-                    // 🟢 Long press to play at 2X speed!
+                    onDoubleTap = { offset ->
+                        if (!isZooming) {
+                            onInteract() 
+                            val currentPos = player?.time ?: 0L
+                            val seekSec = doubleTapSeekMs / 1000
+                            if (offset.x < size.width / 2) {
+                                val target = (currentPos - doubleTapSeekMs).coerceAtLeast(0L)
+                                player?.time = target
+                                swipeFeedbackText = "-${seekSec}s"
+                            } else {
+                                val target = (currentPos + doubleTapSeekMs).coerceAtMost(totalTime)
+                                player?.time = target
+                                swipeFeedbackText = "+${seekSec}s"
+                            }
+                            showFeedback = true
+                            feedbackTrigger++ 
+                        }
+                    },
                     onLongPress = {
-                        if (player?.isPlaying == true) {
+                        if (!isZooming && player?.isPlaying == true) {
                             savedSpeedBeforeLongPress = player.rate
                             player.rate = 2.0f
                             isLongPress2X = true
@@ -188,75 +209,81 @@ fun XPlayerComposeControls(
                     }
                 )
             }
-            .pointerInput(isLocked) {
-                detectDragGestures(
-                    onDragStart = { offset: Offset ->
-                        onSwipe()
-                        startX = offset.x
-                        startY = offset.y
-                        swipeDirection = 0
-                        startSeekPos = player?.time ?: 0L
-                        targetSeekPos = startSeekPos
-                        startBrightness = activity?.window?.attributes?.screenBrightness ?: 0.5f
-                        if (startBrightness < 0) startBrightness = 0.5f
-                        startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                        showFeedback = true
-                    },
-                    onDragEnd = {
-                        showFeedback = false
-                        if (swipeDirection == 1) {
-                            player?.time = targetSeekPos
-                            currentTime = targetSeekPos
-                        }
-                        swipeDirection = 0
-                    },
-                    onDragCancel = {
-                        showFeedback = false
-                        swipeDirection = 0
-                    },
-                    onDrag = { change: PointerInputChange, _: Offset ->
-                        change.consume()
-                        val deltaX = change.position.x - startX
-                        val deltaY = change.position.y - startY
-
-                        if (swipeDirection == 0) {
-                            if (abs(deltaX) > abs(deltaY) && abs(deltaX) > 20) swipeDirection = 1 
-                            else if (abs(deltaY) > abs(deltaX) && abs(deltaY) > 20) {
-                                if (startX < size.width / 2) swipeDirection = 2 
-                                else swipeDirection = 3 
+            .pointerInput(isLocked, isZooming, swipeEnabled) {
+                if (swipeEnabled) {
+                    detectDragGestures(
+                        onDragStart = { offset: Offset ->
+                            if (!isZooming) {
+                                onSwipe()
+                                startX = offset.x
+                                startY = offset.y
+                                swipeDirection = 0
+                                startSeekPos = player?.time ?: 0L
+                                targetSeekPos = startSeekPos
+                                startBrightness = activity?.window?.attributes?.screenBrightness ?: 0.5f
+                                if (startBrightness < 0) startBrightness = 0.5f
+                                startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                showFeedback = true
                             }
-                        }
-
-                        when (swipeDirection) {
-                            1 -> { 
-                                val seekFactor = 100L 
-                                targetSeekPos = (startSeekPos + (deltaX * seekFactor).toLong()).coerceIn(0L, totalTime)
-                                swipeFeedbackText = "${formatTime(targetSeekPos)} / ${formatTime(totalTime)}"
+                        },
+                        onDragEnd = {
+                            showFeedback = false
+                            if (swipeDirection == 1) {
+                                player?.time = targetSeekPos
+                                currentTime = targetSeekPos
                             }
-                            2 -> { 
-                                val newBrightness = (startBrightness - (deltaY * 0.002f)).coerceIn(0.01f, 1f)
-                                activity?.window?.let { window ->
-                                    val lp = window.attributes
-                                    lp.screenBrightness = newBrightness
-                                    window.attributes = lp
+                            swipeDirection = 0
+                        },
+                        onDragCancel = {
+                            showFeedback = false
+                            swipeDirection = 0
+                        },
+                        onDrag = { change: PointerInputChange, _: Offset ->
+                            if (!isZooming) {
+                                change.consume()
+                                val deltaX = change.position.x - startX
+                                val deltaY = change.position.y - startY
+
+                                if (swipeDirection == 0) {
+                                    if (abs(deltaX) > abs(deltaY) && abs(deltaX) > 20) swipeDirection = 1 
+                                    else if (abs(deltaY) > abs(deltaX) && abs(deltaY) > 20) {
+                                        if (startX < size.width / 2) swipeDirection = 2 
+                                        else swipeDirection = 3 
+                                    }
                                 }
-                                swipeFeedbackText = "Brightness: ${(newBrightness * 100).toInt()}%"
-                            }
-                            3 -> { 
-                                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                val newVol = (startVolume - (deltaY * 0.002f * maxVol)).toInt().coerceIn(0, maxVol)
-                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                swipeFeedbackText = "Volume: ${(newVol.toFloat() / maxVol * 100).toInt()}%"
+
+                                when (swipeDirection) {
+                                    1 -> { 
+                                        val seekFactor = 100L 
+                                        targetSeekPos = (startSeekPos + (deltaX * seekFactor).toLong()).coerceIn(0L, totalTime)
+                                        swipeFeedbackText = "${formatTime(targetSeekPos)} / ${formatTime(totalTime)}"
+                                    }
+                                    2 -> { 
+                                        val newBrightness = (startBrightness - (deltaY * 0.002f)).coerceIn(0.01f, 1f)
+                                        activity?.window?.let { window ->
+                                            val lp = window.attributes
+                                            lp.screenBrightness = newBrightness
+                                            window.attributes = lp
+                                        }
+                                        swipeFeedbackText = "Brightness: ${(newBrightness * 100).toInt()}%"
+                                    }
+                                    3 -> { 
+                                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                        val newVol = (startVolume - (deltaY * 0.002f * maxVol)).toInt().coerceIn(0, maxVol)
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                        swipeFeedbackText = "Volume: ${(newVol.toFloat() / maxVol * 100).toInt()}%"
+                                    }
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
     }
 
     Box(modifier = modifier.then(gestureModifier)) {
-        
-        // 🟢 Floating 2X Speed HUD at Top Center
+
+        // Floating 2X Speed HUD at Top Center
         AnimatedVisibility(
             visible = isLongPress2X,
             enter = fadeIn() + slideInVertically { -it },
@@ -284,7 +311,7 @@ fun XPlayerComposeControls(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "2× Playback Speed",
+                        text = "2x Playback Speed",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
@@ -293,7 +320,7 @@ fun XPlayerComposeControls(
             }
         }
 
-        // Gesture feedback overlay (seek, volume, brightness)
+        // Gesture feedback overlay
         if (showFeedback) {
             Box(
                 modifier = Modifier
@@ -312,9 +339,9 @@ fun XPlayerComposeControls(
             }
         }
 
-        // Bottom Controls Bar with Glass Circle Buttons
+        // Bottom Controls Bar
         AnimatedVisibility(
-            visible = showUi && !isLocked, 
+            visible = showUi && !isLocked && !isZooming, 
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -322,11 +349,9 @@ fun XPlayerComposeControls(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                
-                // 🟢 Previous Button in Glass Circle
                 GlassCircleButton(
                     size = 42.dp,
                     onClick = { onInteract(); onPrevClick() }
@@ -340,8 +365,7 @@ fun XPlayerComposeControls(
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
-                
-                // 🟢 Play / Pause Button in Elegant Glass Circle
+
                 GlassCircleButton(
                     size = 52.dp,
                     containerColor = Color(0x4D1E293B),
@@ -367,7 +391,6 @@ fun XPlayerComposeControls(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // 🟢 Next Button in Glass Circle
                 GlassCircleButton(
                     size = 42.dp,
                     onClick = { onInteract(); onNextClick() }
