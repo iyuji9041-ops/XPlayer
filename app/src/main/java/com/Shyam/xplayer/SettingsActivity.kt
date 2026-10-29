@@ -154,7 +154,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // 7. Subtitle Customization
         val subSizes = arrayOf("Small (14sp)", "Medium (18sp)", "Large (22sp)", "Extra Large (26sp)")
-        val tvSubSubtitle = findViewById<TextView>(R.id.tvSubtitleDesc)
+        val tvSubSubtitle = findViewById<TextView>(R.id.tvSubtitleText)
         val currentSubSize = sharedPref.getInt("subtitle_size", 1)
         tvSubSubtitle?.text = "Font size: ${subSizes[currentSubSize]}"
 

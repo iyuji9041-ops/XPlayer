@@ -505,6 +505,7 @@
                          android:textSize="13sp"
                          android:textColor="#80FFFFFF"
                          android:layout_marginTop="2dp"
+                         android:id="@+id/tvSyncSubtitle"
                          android:text="Fix mismatched media tracks" />
 
                 </LinearLayout>
@@ -717,6 +718,7 @@
                          android:textSize="13sp"
                          android:textColor="#80FFFFFF"
                          android:layout_marginTop="2dp"
+                         android:id="@+id/tvVaultSubtitle"
                          android:text="Lock personal videos with PIN/Fingerprint" />
 
                 </LinearLayout>
