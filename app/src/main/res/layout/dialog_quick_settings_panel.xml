@@ -36,7 +36,7 @@
             android:text="Audio Boost (200%)"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/switchQuickBoost"
@@ -76,7 +76,7 @@
             android:text="Audio track"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -135,7 +135,7 @@
             android:text="Subtitles / CC"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -193,7 +193,7 @@
             android:text="Sleep timer"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -248,7 +248,7 @@
             android:text="Playback speed"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -303,7 +303,7 @@
             android:text="Aspect Ratio"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -358,7 +358,7 @@
             android:text="Background Audio"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:textStyle="medium" />
+            android:fontFamily="sans-serif-medium" />
 
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/switchQuickBgAudio"
