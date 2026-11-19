@@ -11,19 +11,19 @@ import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.mapper.VideoInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 object ExtractionEngine {
 
   private const val TAG = "ExtractionEngine"
-  private val extractionCache = java.util.concurrent.ConcurrentHashMap<String, YouTubeVideoItem>()
+  private val extractionCache = ConcurrentHashMap<String, YouTubeVideoItem>()
   private val httpClient = OkHttpClient.Builder()
-    .connectTimeout(10, TimeUnit.SECONDS)
-    .readTimeout(15, TimeUnit.SECONDS)
+    .connectTimeout(15, TimeUnit.SECONDS)
+    .readTimeout(20, TimeUnit.SECONDS)
     .build()
 
   fun getCached(url: String): YouTubeVideoItem? {
@@ -72,14 +72,11 @@ object ExtractionEngine {
     return s
   }
 
-  /**
-   * Alias for extractMediaInfo.
-   */
   suspend fun extract(context: Context, rawUrl: String): YouTubeVideoItem = extractMediaInfo(context, rawUrl)
 
   /**
-   * Extracts media metadata, available video resolutions, and high-speed audio streams
-   * using the native C++ yt-dlp extraction engine with online stream fallback.
+   * Extracts media metadata, available video resolutions, and audio streams
+   * using the native yt-dlp extraction engine with online stream fallback.
    */
   suspend fun extractMediaInfo(context: Context, rawUrl: String): YouTubeVideoItem = withContext(Dispatchers.IO) {
     val cleanUrl = sanitizeUrl(rawUrl)
@@ -96,6 +93,8 @@ object ExtractionEngine {
     }
     val defaultThumbnail = if (ytId != null) "https://img.youtube.com/vi/$ytId/hqdefault.jpg" else ""
 
+    var lastException: Throwable? = null
+
     // 1. Attempt native yt-dlp extraction
     try {
       try {
@@ -105,17 +104,20 @@ object ExtractionEngine {
       val request = YoutubeDLRequest(cleanUrl).apply {
         addOption("--no-mtime")
         addOption("--no-playlist")
-        addOption("--socket-timeout", "10")
-        addOption("--extractor-args", "youtube:player_client=android,web")
+        addOption("--socket-timeout", "15")
+        addOption("--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
         addOption("--no-check-certificates")
         addOption("--no-warnings")
+        addOption("--geo-bypass")
       }
       val info: VideoInfo = YoutubeDL.getInstance().getInfo(request)
 
       val durationMs = (info.duration?.toLong() ?: 0L) * 1000L
-      val durationSec = (durationMs / 1000L).coerceAtLeast(15L)
-      val title = info.title?.takeIf { it.isNotBlank() } ?: if (ytId != null) "YouTube Video ($ytId)" else "Online Media Stream"
-      val uploader = info.uploader ?: info.uploaderId ?: "YouTube Creator"
+      val durationSec = (durationMs / 1000L).coerceAtLeast(1L)
+      val title = info.title?.takeIf { it.isNotBlank() }
+        ?: if (ytId != null) "YouTube Video ($ytId)"
+        else "Online Media Video"
+      val uploader = info.uploader ?: info.uploaderId ?: "Online Creator"
       val thumbnail = info.thumbnail?.takeIf { it.isNotBlank() } ?: defaultThumbnail
 
       val videoQualities = mutableListOf<YouTubeVideoQuality>()
@@ -127,84 +129,96 @@ object ExtractionEngine {
         val height = fmt.height
         val ext = fmt.ext?.lowercase() ?: "mp4"
 
-        // Filter out storyboards, mhtml, and any quality strictly below 144p
         val isStoryboard = ext == "mhtml" || fmt.formatNote?.contains("storyboard", true) == true || url.contains("storyboard")
         val isVideo = fmt.vcodec != null && fmt.vcodec != "none" && !isStoryboard
         val isAudioOnly = (fmt.vcodec == null || fmt.vcodec == "none") && fmt.acodec != null && fmt.acodec != "none" && !isStoryboard
 
         if (isVideo && height != null && height >= 144) {
-          // Check for progressive format with both audio and video
           if (progressiveStreamUrl == null && fmt.acodec != null && fmt.acodec != "none") {
             progressiveStreamUrl = url
           }
 
           var fileSize = fmt.fileSize ?: fmt.fileSizeApproximate ?: 0L
           if (fileSize <= 0L) {
-            val mbPerMin = when {
-              height >= 2160 -> 45.0
-              height >= 1440 -> 30.0
-              height >= 1080 -> 18.0
-              height >= 720 -> 10.0
-              height >= 480 -> 5.5
-              height >= 360 -> 3.5
-              height >= 240 -> 2.0
-              else -> 1.2
+            val tbr = fmt.tbr ?: fmt.vbr ?: 0.0
+            if (tbr > 0.0 && durationSec > 0L) {
+              fileSize = ((tbr * 1024.0 / 8.0) * durationSec).toLong()
             }
-            fileSize = ((durationSec / 60.0) * mbPerMin * 1024 * 1024).toLong().coerceAtLeast(800_000L)
           }
 
-          val label = "${height}p ${if (height >= 1080) "Full HD" else if (height >= 720) "HD" else "SD"}"
+          val label = "${height}p ${if (height >= 2160) "4K UHD" else if (height >= 1440) "2K QHD" else if (height >= 1080) "Full HD" else if (height >= 720) "HD" else "SD"}"
           videoQualities.add(
             YouTubeVideoQuality(
               qualityLabel = label,
               height = height,
               format = "MP4 ($ext)",
               approximateSizeBytes = fileSize,
-              streamUrl = url
+              streamUrl = url,
+              formatId = fmt.formatId ?: ""
             )
           )
         }
 
-        // Audio formats (ONLY audio-only formats; progressive video is never treated as audio)
         if (isAudioOnly) {
-          val rawAbr = fmt.abr?.toInt() ?: 0
-          val bitrate = if (rawAbr > 0) rawAbr else 160
-          val audioLabel = when {
-            bitrate >= 256 -> "High-Speed MP3 (${bitrate} kbps Master)"
-            bitrate >= 160 -> "High-Speed M4A (${bitrate} kbps HD)"
-            bitrate >= 120 -> "Fast Audio M4A (${bitrate} kbps)"
-            else -> "Standard Audio (${bitrate} kbps)"
-          }
+          val rawAbr = fmt.abr?.toInt() ?: fmt.tbr?.toInt() ?: 128
+          val formatName = if (ext.contains("m4a") || ext.contains("aac")) "M4A" else if (ext.contains("opus")) "OPUS" else "MP3"
+          val audioLabel = "${rawAbr} kbps ${formatName}"
 
           var audioSize = fmt.fileSize ?: fmt.fileSizeApproximate ?: 0L
-          if (audioSize <= 0L || audioSize > 25_000_000L) {
-            audioSize = ((bitrate * 1024L / 8L) * durationSec).coerceIn(1_200_000L, 12_000_000L)
+          if (audioSize <= 0L && rawAbr > 0 && durationSec > 0L) {
+            audioSize = ((rawAbr * 1024L / 8L) * durationSec)
           }
 
           audioQualities.add(
             YouTubeAudioQuality(
               qualityLabel = audioLabel,
-              bitrateKbps = bitrate,
-              format = if (ext.contains("m4a")) "M4A AAC" else if (ext.contains("opus")) "OPUS" else "MP3",
+              bitrateKbps = rawAbr,
+              format = formatName,
               approximateSizeBytes = audioSize,
-              streamUrl = url
+              streamUrl = url,
+              formatId = fmt.formatId ?: ""
             )
           )
         }
       }
 
-      // Keep only one entry per height, sorted descending (e.g. 1080p, 720p, 480p, 360p, 240p, 144p)
       val distinctVideo = videoQualities
         .distinctBy { it.height }
         .sortedByDescending { it.height }
         .filter { it.height >= 144 }
 
+      val distinctAudio = audioQualities
+        .distinctBy { it.bitrateKbps }
+        .sortedByDescending { it.bitrateKbps }
+
       val directStream = progressiveStreamUrl ?: distinctVideo.firstOrNull()?.streamUrl ?: info.url ?: cleanUrl
 
-      val finalVideoQualities = buildCompleteVideoQualities(distinctVideo, durationSec, directStream)
-      val finalAudioQualities = buildCompleteAudioQualities(audioQualities, durationSec, directStream)
+      // If video has audio inside progressive stream but no separate audio formats (e.g., Instagram Reels)
+      val finalAudioQualities = if (distinctAudio.isNotEmpty()) {
+        distinctAudio
+      } else {
+        val approxAudioSize = if (durationSec > 0L) ((160 * 1024L / 8L) * durationSec) else 0L
+        listOf(
+          YouTubeAudioQuality(
+            qualityLabel = "Original Studio Audio (M4A)",
+            bitrateKbps = 160,
+            format = "M4A",
+            approximateSizeBytes = approxAudioSize,
+            streamUrl = directStream,
+            formatId = "m4a"
+          ),
+          YouTubeAudioQuality(
+            qualityLabel = "High Quality Audio (MP3)",
+            bitrateKbps = 192,
+            format = "MP3",
+            approximateSizeBytes = if (durationSec > 0L) ((192 * 1024L / 8L) * durationSec) else 0L,
+            streamUrl = directStream,
+            formatId = "mp3"
+          )
+        )
+      }
 
-      if (finalVideoQualities.isNotEmpty()) {
+      if (distinctVideo.isNotEmpty()) {
         val resultItem = YouTubeVideoItem(
           id = "ytdlp_${System.currentTimeMillis()}",
           title = title,
@@ -213,12 +227,13 @@ object ExtractionEngine {
           viewsCount = "Direct Stream",
           thumbnailUrl = thumbnail,
           streamUrl = directStream,
-          videoQualities = finalVideoQualities,
+          videoQualities = distinctVideo,
           audioQualities = finalAudioQualities,
           subtitles = listOf(
             YouTubeSubtitle("English (CC)", "en", "embedded_en"),
             YouTubeSubtitle("Hindi (हिंदी Subtitles)", "hi", "embedded_hi")
-          )
+          ),
+          sourceUrl = cleanUrl
         )
         extractionCache[cleanUrl] = resultItem
         extractionCache[rawUrl] = resultItem
@@ -226,6 +241,7 @@ object ExtractionEngine {
       }
     } catch (e: Throwable) {
       Log.w(TAG, "yt-dlp primary extraction note: ${e.message}")
+      lastException = e
     }
 
     // 2. Invidious API fallback for YouTube links
@@ -244,7 +260,7 @@ object ExtractionEngine {
               val json = JSONObject(bodyStr)
               val title = json.optString("title", "YouTube Video ($ytId)")
               val author = json.optString("author", "YouTube Creator")
-              val lengthSec = json.optLong("lengthSeconds", 180L).coerceAtLeast(15L)
+              val lengthSec = json.optLong("lengthSeconds", 180L).coerceAtLeast(1L)
               val durationMs = lengthSec * 1000L
 
               val videoQualities = mutableListOf<YouTubeVideoQuality>()
@@ -256,16 +272,18 @@ object ExtractionEngine {
                   val item = formatStreams.getJSONObject(i)
                   val sUrl = item.optString("url")
                   val res = item.optString("resolution", "360p").replace("p", "").toIntOrNull() ?: 360
+                  val itag = item.optString("itag", "")
                   if (sUrl.isNotBlank() && res >= 144) {
                     if (bestStreamUrl.isBlank()) bestStreamUrl = sUrl
-                    val approxSize = ((res.toDouble() / 720.0) * 12.0 * (lengthSec / 60.0) * 1024 * 1024).toLong().coerceAtLeast(1_500_000L)
+                    val approxSize = ((res.toDouble() / 720.0) * 10.0 * (lengthSec / 60.0) * 1024 * 1024).toLong().coerceAtLeast(800_000L)
                     videoQualities.add(
                       YouTubeVideoQuality(
                         qualityLabel = "${res}p ${if (res >= 720) "HD" else "SD"}",
                         height = res,
                         format = "MP4",
                         approximateSizeBytes = approxSize,
-                        streamUrl = sUrl
+                        streamUrl = sUrl,
+                        formatId = itag
                       )
                     )
                   }
@@ -279,26 +297,29 @@ object ExtractionEngine {
                   val item = adaptiveFormats.getJSONObject(i)
                   val type = item.optString("type")
                   val sUrl = item.optString("url")
+                  val itag = item.optString("itag", "")
                   if (type.contains("audio") && sUrl.isNotBlank()) {
                     val bitrate = (item.optLong("bitrate", 128000L) / 1000L).toInt()
-                    val audioSize = ((bitrate * 1024L / 8L) * lengthSec).coerceAtLeast(1_000_000L)
+                    val audioSize = ((bitrate * 1024L / 8L) * lengthSec).coerceAtLeast(500_000L)
                     audioQualities.add(
                       YouTubeAudioQuality(
                         qualityLabel = "High-Speed Audio (${bitrate} kbps)",
                         bitrateKbps = bitrate,
                         format = "M4A",
                         approximateSizeBytes = audioSize,
-                        streamUrl = sUrl
+                        streamUrl = sUrl,
+                        formatId = itag
                       )
                     )
                   }
                 }
               }
 
-              if (videoQualities.isNotEmpty()) {
-                val directStream = bestStreamUrl.ifBlank { videoQualities.first().streamUrl }
-                val finalVideo = buildCompleteVideoQualities(videoQualities, lengthSec, directStream)
-                val finalAudio = buildCompleteAudioQualities(audioQualities, lengthSec, directStream)
+              val distinctVid = videoQualities.distinctBy { it.height }.sortedByDescending { it.height }
+              val distinctAud = audioQualities.distinctBy { it.bitrateKbps }.sortedByDescending { it.bitrateKbps }
+
+              if (distinctVid.isNotEmpty()) {
+                val directStream = bestStreamUrl.ifBlank { distinctVid.first().streamUrl }
                 val invItem = YouTubeVideoItem(
                   id = "inv_${System.currentTimeMillis()}",
                   title = title,
@@ -307,12 +328,10 @@ object ExtractionEngine {
                   viewsCount = "Direct Stream",
                   thumbnailUrl = defaultThumbnail,
                   streamUrl = directStream,
-                  videoQualities = finalVideo,
-                  audioQualities = finalAudio,
-                  subtitles = listOf(
-                    YouTubeSubtitle("English (CC)", "en", "embedded_en"),
-                    YouTubeSubtitle("Hindi (हिंदी Subtitles)", "hi", "embedded_hi")
-                  )
+                  videoQualities = distinctVid,
+                  audioQualities = distinctAud,
+                  subtitles = emptyList(),
+                  sourceUrl = cleanUrl
                 )
                 extractionCache[cleanUrl] = invItem
                 extractionCache[rawUrl] = invItem
@@ -328,80 +347,51 @@ object ExtractionEngine {
       }
     }
 
-    // 3. Fallback for direct media links (mp4, m3u8, webm, etc.)
-    val isDirectFile = cleanUrl.endsWith(".mp4", true) || cleanUrl.endsWith(".m3u8", true) || cleanUrl.endsWith(".webm", true) || cleanUrl.endsWith(".mp3", true) || cleanUrl.endsWith(".m4a", true)
-    val fallbackTitle = if (ytId != null) "YouTube Video ($ytId)" else cleanUrl.substringAfterLast('/').substringBefore('?').takeIf { it.isNotBlank() } ?: "Online Media Stream"
-    val defaultDurSec = 180L
-    val fallbackVideo = buildCompleteVideoQualities(emptyList(), defaultDurSec, cleanUrl)
-    val fallbackAudio = buildCompleteAudioQualities(emptyList(), defaultDurSec, cleanUrl)
-
-    val fallbackItem = YouTubeVideoItem(
-      id = "stream_${System.currentTimeMillis()}",
-      title = fallbackTitle,
-      author = if (ytId != null) "YouTube Creator" else "Online Stream",
-      durationMs = 0L,
-      viewsCount = "Direct Stream",
-      thumbnailUrl = defaultThumbnail,
-      streamUrl = cleanUrl,
-      videoQualities = fallbackVideo,
-      audioQualities = fallbackAudio,
-      subtitles = emptyList()
-    )
-    extractionCache[cleanUrl] = fallbackItem
-    extractionCache[rawUrl] = fallbackItem
-    return@withContext fallbackItem
-  }
-
-  private fun buildCompleteAudioQualities(
-    existing: List<YouTubeAudioQuality>,
-    durationSec: Long,
-    fallbackUrl: String
-  ): List<YouTubeAudioQuality> {
-    val bestUrl = existing.firstOrNull()?.streamUrl ?: fallbackUrl
-    val tiers = listOf(
-      Triple("High-Speed MP3 (320 kbps Master)", 320, "MP3"),
-      Triple("High-Speed MP3 (256 kbps High)", 256, "MP3"),
-      Triple("High-Speed M4A (192 kbps HD)", 192, "M4A AAC"),
-      Triple("Fast Audio M4A (128 kbps)", 128, "M4A AAC")
-    )
-    val result = mutableListOf<YouTubeAudioQuality>()
-    tiers.forEach { (label, bitrate, format) ->
-      val matched = existing.firstOrNull { it.bitrateKbps == bitrate }
-      if (matched != null) {
-        result.add(matched)
-      } else {
-        val size = ((bitrate * 1024L / 8L) * durationSec).coerceIn(1_200_000L, 20_000_000L)
-        result.add(YouTubeAudioQuality(label, bitrate, format, size, bestUrl))
-      }
+    // 3. Fallback for direct media links (mp4, m3u8, webm, mp3, m4a, etc.)
+    val isDirectFile = cleanUrl.endsWith(".mp4", true) || cleanUrl.endsWith(".m3u8", true) ||
+                       cleanUrl.endsWith(".webm", true) || cleanUrl.endsWith(".mp3", true) ||
+                       cleanUrl.endsWith(".m4a", true) || cleanUrl.contains(".mp4?") ||
+                       cleanUrl.contains(".m3u8?")
+    if (isDirectFile) {
+      val fallbackTitle = cleanUrl.substringAfterLast('/').substringBefore('?').takeIf { it.isNotBlank() } ?: "Direct Media Stream"
+      val isAudioFile = cleanUrl.endsWith(".mp3", true) || cleanUrl.endsWith(".m4a", true)
+      val fallbackItem = YouTubeVideoItem(
+        id = "stream_${System.currentTimeMillis()}",
+        title = fallbackTitle,
+        author = "Direct Link",
+        durationMs = 0L,
+        viewsCount = "Direct Stream",
+        thumbnailUrl = defaultThumbnail,
+        streamUrl = cleanUrl,
+        videoQualities = if (!isAudioFile) listOf(
+          YouTubeVideoQuality(
+            qualityLabel = "Direct Video Stream",
+            height = 720,
+            format = "MP4",
+            approximateSizeBytes = 0L,
+            streamUrl = cleanUrl
+          )
+        ) else emptyList(),
+        audioQualities = if (isAudioFile) listOf(
+          YouTubeAudioQuality(
+            qualityLabel = "Direct Audio Stream",
+            bitrateKbps = 160,
+            format = "Audio",
+            approximateSizeBytes = 0L,
+            streamUrl = cleanUrl
+          )
+        ) else emptyList(),
+        subtitles = emptyList(),
+        sourceUrl = cleanUrl
+      )
+      extractionCache[cleanUrl] = fallbackItem
+      extractionCache[rawUrl] = fallbackItem
+      return@withContext fallbackItem
     }
-    return result.sortedByDescending { it.bitrateKbps }
-  }
 
-  private fun buildCompleteVideoQualities(
-    existing: List<YouTubeVideoQuality>,
-    durationSec: Long,
-    fallbackUrl: String
-  ): List<YouTubeVideoQuality> {
-    val result = existing.distinctBy { it.height }.toMutableList()
-    val desired = listOf(
-      Pair(1080, "1080p Full HD"),
-      Pair(720, "720p HD"),
-      Pair(480, "480p SD"),
-      Pair(360, "360p SD")
-    )
-    desired.forEach { (h, lbl) ->
-      if (result.none { it.height == h }) {
-        val mbPerMin = when {
-          h >= 1080 -> 18.0
-          h >= 720 -> 10.0
-          h >= 480 -> 5.5
-          else -> 3.5
-        }
-        val size = ((durationSec / 60.0) * mbPerMin * 1024 * 1024).toLong().coerceAtLeast(1_000_000L)
-        result.add(YouTubeVideoQuality(lbl, h, "MP4", size, fallbackUrl))
-      }
-    }
-    return result.sortedByDescending { it.height }
+    // If all extraction methods failed, throw clear actionable exception
+    val errMsg = lastException?.localizedMessage ?: lastException?.message ?: "Could not extract stream. Please check link or update yt-dlp via OTA Update."
+    throw IllegalStateException(errMsg)
   }
 
   /**
@@ -409,11 +399,15 @@ object ExtractionEngine {
    */
   suspend fun updateEngine(context: Context): String = withContext(Dispatchers.IO) {
     try {
-      val status = YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel.STABLE)
-      "yt-dlp Core updated ($status)"
+      val status = YoutubeDL.getInstance().updateYoutubeDL(context.applicationContext, YoutubeDL.UpdateChannel.STABLE)
+      when (status) {
+        YoutubeDL.UpdateStatus.DONE -> "yt-dlp Core updated to latest release successfully!"
+        YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE -> "yt-dlp Core is already up to date"
+        else -> "yt-dlp Core update status: $status"
+      }
     } catch (e: Throwable) {
-      Log.w(TAG, "OTA update fallback: ${e.message}")
-      "OTA Core updated to latest v2024.10.07 rules"
+      Log.w(TAG, "OTA update error: ${e.message}")
+      "OTA update error: ${e.localizedMessage ?: e.message ?: "Failed to connect to update server"}"
     }
   }
 }

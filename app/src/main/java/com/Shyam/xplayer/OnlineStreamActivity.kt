@@ -2,12 +2,16 @@ package com.Shyam.xplayer
 
 import android.app.DownloadManager
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -44,21 +49,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import coil.compose.AsyncImage
 import com.Shyam.xplayer.model.YouTubeAudioQuality
 import com.Shyam.xplayer.model.YouTubeVideoItem
 import com.Shyam.xplayer.model.YouTubeVideoQuality
 import com.Shyam.xplayer.util.ExtractionEngine
 import com.Shyam.xplayer.util.NovaIcons
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
 
 class OnlineStreamActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Edge-to-edge support for modern Android & Xiaomi HyperOS
+        // Edge-to-edge support for modern Android 15/16/17 & HyperOS
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
@@ -104,6 +115,12 @@ fun OnlineStreamScreen(
     var isAnalyzing by remember { mutableStateOf(false) }
     var analyzedItem by remember { mutableStateOf<YouTubeVideoItem?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Download state
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadProgressText by remember { mutableStateOf("") }
+    var downloadPercent by remember { mutableFloatStateOf(0f) }
+    var downloadingTitle by remember { mutableStateOf("") }
 
     // OTA Update Button state
     var isUpdatingEngine by remember { mutableStateOf(false) }
@@ -164,30 +181,202 @@ fun OnlineStreamScreen(
             val result = ExtractionEngine.updateEngine(context)
             withContext(Dispatchers.Main) {
                 isUpdatingEngine = false
-                otaButtonLabel = "Up to date"
+                otaButtonLabel = if (result.contains("error", true)) "Retry Update" else "Up to date"
                 Toast.makeText(context, result, Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    fun startDownload(streamUrl: String, title: String, ext: String, label: String) {
+    fun saveFileToPublicMedia(srcFile: File, displayName: String, isAudio: Boolean): File? {
         try {
-            val cleanTitle = title.replace(Regex("[^a-zA-Z0-9._ -]"), "_").take(55)
-            val fileName = "$cleanTitle.$ext"
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val request = DownloadManager.Request(Uri.parse(streamUrl))
-                .setTitle(title)
-                .setDescription("Downloading $label stream")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "XPlayer/$fileName")
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
-            downloadManager.enqueue(request)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val collection = if (isAudio) {
+                    MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                }
+                val mime = if (isAudio) {
+                    if (displayName.endsWith(".mp3", true)) "audio/mpeg" else "audio/mp4"
+                } else "video/mp4"
 
-            recentDownloads.add(0, RecentDownload(title = title, format = label, status = "Downloading to Downloads/XPlayer/"))
-            Toast.makeText(context, "Download started: $fileName\nCheck notification bar", Toast.LENGTH_LONG).show()
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, if (isAudio) "Music/XPlayer" else "Movies/XPlayer")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(collection, values)
+                if (uri != null) {
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        srcFile.inputStream().use { inp -> inp.copyTo(out) }
+                    }
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
+                }
+            }
+
+            val pubDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "XPlayer")
+            if (!pubDir.exists()) pubDir.mkdirs()
+            val dest = File(pubDir, displayName)
+            srcFile.copyTo(dest, overwrite = true)
+            MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), null, null)
+            srcFile.delete()
+            return dest
         } catch (e: Exception) {
-            Toast.makeText(context, "Download initiation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.w("OnlineStream", "Saving media error: ${e.message}")
+            val pubDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "XPlayer")
+            if (!pubDir.exists()) pubDir.mkdirs()
+            val dest = File(pubDir, displayName)
+            try {
+                srcFile.copyTo(dest, overwrite = true)
+                MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), null, null)
+                srcFile.delete()
+                return dest
+            } catch (_: Exception) {}
+            return null
+        }
+    }
+
+    fun startDownload(
+        sourceUrl: String,
+        directStreamUrl: String,
+        title: String,
+        isAudio: Boolean,
+        targetHeight: Int,
+        audioFormat: String,
+        label: String
+    ) {
+        if (isDownloading) {
+            Toast.makeText(context, "A download is already running. Please wait.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val cleanTitle = title.replace(Regex("[^a-zA-Z0-9._ -]"), "_").trim().take(55)
+        val ext = if (isAudio) (if (audioFormat.contains("mp3", true)) "mp3" else "m4a") else "mp4"
+        val fileName = "$cleanTitle.$ext"
+
+        isDownloading = true
+        downloadPercent = 0f
+        downloadProgressText = "Starting..."
+        downloadingTitle = "$title ($label)"
+
+        recentDownloads.add(0, RecentDownload(title = title, format = label, status = "Downloading..."))
+        Toast.makeText(context, "Download started: $fileName", Toast.LENGTH_SHORT).show()
+
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                try {
+                    YoutubeDL.getInstance().init(context.applicationContext)
+                } catch (_: Throwable) {}
+
+                val tempDir = File(context.cacheDir, "xplayer_downloads").apply { if (!exists()) mkdirs() }
+                val tempFile = File(tempDir, fileName)
+                if (tempFile.exists()) tempFile.delete()
+
+                val targetUrl = sourceUrl.ifBlank { directStreamUrl }
+                var downloadSuccess = false
+
+                // 1. Primary native yt-dlp execution
+                try {
+                    val request = YoutubeDLRequest(targetUrl).apply {
+                        addOption("-o", "${tempDir.absolutePath}/$fileName")
+                        addOption("--no-mtime")
+                        addOption("--no-playlist")
+                        addOption("--socket-timeout", "30")
+                        addOption("--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+                        addOption("--no-check-certificates")
+                        addOption("--geo-bypass")
+                        if (isAudio) {
+                            addOption("-x")
+                            addOption("--audio-format", if (audioFormat.contains("mp3", true)) "mp3" else "m4a")
+                            addOption("--audio-quality", "0")
+                        } else {
+                            if (targetHeight > 0) {
+                                addOption("-f", "bestvideo[height<=$targetHeight][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=$targetHeight]+bestaudio/best[height<=$targetHeight]/best")
+                            } else {
+                                addOption("-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best")
+                            }
+                            addOption("--merge-output-format", "mp4")
+                        }
+                    }
+
+                    YoutubeDL.getInstance().execute(request, "dl_${System.currentTimeMillis()}") { progress, etaInSeconds, line ->
+                        coroutineScope.launch(Dispatchers.Main) {
+                            downloadPercent = (progress / 100f).coerceIn(0f, 1f)
+                            val speedPart = if (!line.isNullOrBlank() && line.contains("at")) {
+                                " at " + line.substringAfter("at").substringBefore("ETA").trim()
+                            } else ""
+                            downloadProgressText = "${progress.toInt()}%$speedPart"
+                        }
+                    }
+                    downloadSuccess = tempFile.exists() && tempFile.length() > 0
+                } catch (ytdlError: Throwable) {
+                    Log.w("OnlineStream", "yt-dlp primary download note: ${ytdlError.message}")
+                    // 2. Direct Stream Fallback via OkHttp stream copy
+                    if (directStreamUrl.startsWith("http")) {
+                        withContext(Dispatchers.Main) {
+                            downloadProgressText = "Downloading direct stream..."
+                        }
+                        val req = Request.Builder().url(directStreamUrl).build()
+                        val resp = OkHttpClient().newCall(req).execute()
+                        if (resp.isSuccessful && resp.body != null) {
+                            val body = resp.body!!
+                            val totalBytes = body.contentLength()
+                            var bytesCopied = 0L
+                            body.byteStream().use { input ->
+                                tempFile.outputStream().use { output ->
+                                    val buffer = ByteArray(32 * 1024)
+                                    var read = input.read(buffer)
+                                    while (read != -1) {
+                                        output.write(buffer, 0, read)
+                                        bytesCopied += read
+                                        if (totalBytes > 0) {
+                                            val p = (bytesCopied.toFloat() / totalBytes)
+                                            withContext(Dispatchers.Main) {
+                                                downloadPercent = p.coerceIn(0f, 1f)
+                                                downloadProgressText = "${(p * 100).toInt()}% (${bytesCopied / (1024 * 1024)} MB)"
+                                            }
+                                        }
+                                        read = input.read(buffer)
+                                    }
+                                }
+                            }
+                            downloadSuccess = tempFile.exists() && tempFile.length() > 0
+                        }
+                    }
+                }
+
+                if (downloadSuccess) {
+                    val savedFile = saveFileToPublicMedia(tempFile, fileName, isAudio)
+                    withContext(Dispatchers.Main) {
+                        isDownloading = false
+                        downloadPercent = 1f
+                        if (recentDownloads.isNotEmpty()) {
+                            recentDownloads[0] = recentDownloads[0].copy(
+                                status = "Saved in ${if (isAudio) "Music/XPlayer" else "Movies/XPlayer"}"
+                            )
+                        }
+                        Toast.makeText(context, "Download complete: $fileName", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        isDownloading = false
+                        if (recentDownloads.isNotEmpty()) {
+                            recentDownloads[0] = recentDownloads[0].copy(status = "Download Failed")
+                        }
+                        Toast.makeText(context, "Download failed. Please check network.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isDownloading = false
+                    if (recentDownloads.isNotEmpty()) {
+                        recentDownloads[0] = recentDownloads[0].copy(status = "Error: ${e.message}")
+                    }
+                    Toast.makeText(context, "Download error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -203,8 +392,7 @@ fun OnlineStreamScreen(
                     )
                 )
             )
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .imePadding()
     ) {
         LazyColumn(
@@ -535,6 +723,67 @@ fun OnlineStreamScreen(
                 }
             }
 
+            // Active Download Card
+            if (isDownloading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0x33A855F7))
+                            .border(1.dp, Color(0x66A855F7), RoundedCornerShape(18.dp))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color(0xFFA855F7),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Text(
+                                        text = "Downloading Media...",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = downloadProgressText,
+                                    color = Color(0xFFA855F7),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            LinearProgressIndicator(
+                                progress = { downloadPercent },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = Color(0xFFA855F7),
+                                trackColor = Color(0x33FFFFFF)
+                            )
+                            Text(
+                                text = downloadingTitle,
+                                color = Color(0xFFCBD5E1),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
             // Analyzing Indicator State
             item {
                 AnimatedVisibility(visible = isAnalyzing) {
@@ -641,6 +890,43 @@ fun OnlineStreamScreen(
                                 .padding(16.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                // Thumbnail with duration badge
+                                if (item.thumbnailUrl.isNotBlank()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(190.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Color(0xFF0C0D12))
+                                    ) {
+                                        AsyncImage(
+                                            model = item.thumbnailUrl,
+                                            contentDescription = "Video Thumbnail",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        if (item.durationMs > 0L) {
+                                            val m = item.durationMs / 1000 / 60
+                                            val s = (item.durationMs / 1000) % 60
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .padding(8.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(Color(0xCC000000))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = String.format("%02d:%02d", m, s),
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // Title and duration
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     Row(
@@ -655,7 +941,7 @@ fun OnlineStreamScreen(
                                             fontWeight = FontWeight.Bold,
                                             letterSpacing = 0.6.sp
                                         )
-                                        if (item.durationMs > 0L) {
+                                        if (item.durationMs > 0L && item.thumbnailUrl.isBlank()) {
                                             val m = item.durationMs / 1000 / 60
                                             val s = (item.durationMs / 1000) % 60
                                             Text(
@@ -727,7 +1013,15 @@ fun OnlineStreamScreen(
                                                 isAudio = false,
                                                 onPlay = { onPlayStream(vq.streamUrl, item.title) },
                                                 onDownload = {
-                                                    startDownload(vq.streamUrl, item.title, "mp4", vq.qualityLabel)
+                                                    startDownload(
+                                                        sourceUrl = item.sourceUrl,
+                                                        directStreamUrl = vq.streamUrl,
+                                                        title = item.title,
+                                                        isAudio = false,
+                                                        targetHeight = vq.height,
+                                                        audioFormat = "",
+                                                        label = vq.qualityLabel
+                                                    )
                                                 }
                                             )
                                         }
@@ -736,7 +1030,7 @@ fun OnlineStreamScreen(
                                     // 2. Audio Options
                                     if (selectedCategory == "ALL" || selectedCategory == "AUDIO") {
                                         item.audioQualities.forEach { aq ->
-                                            val ext = if (aq.format.contains("m4a", true)) "m4a" else "mp3"
+                                            val ext = if (aq.format.contains("mp3", true)) "mp3" else "m4a"
                                             StreamOptionRow(
                                                 label = aq.qualityLabel,
                                                 format = aq.format,
@@ -744,7 +1038,15 @@ fun OnlineStreamScreen(
                                                 isAudio = true,
                                                 onPlay = { onPlayStream(aq.streamUrl, "${item.title} (Audio)") },
                                                 onDownload = {
-                                                    startDownload(aq.streamUrl, item.title, ext, aq.qualityLabel)
+                                                    startDownload(
+                                                        sourceUrl = item.sourceUrl,
+                                                        directStreamUrl = aq.streamUrl,
+                                                        title = item.title,
+                                                        isAudio = true,
+                                                        targetHeight = 0,
+                                                        audioFormat = ext,
+                                                        label = aq.qualityLabel
+                                                    )
                                                 }
                                             )
                                         }
@@ -825,7 +1127,7 @@ fun StreamOptionRow(
     onPlay: () -> Unit,
     onDownload: () -> Unit
 ) {
-    val sizeMb = if (sizeBytes > 0) String.format("%.1f MB", sizeBytes / (1024.0 * 1024.0)) else "Direct"
+    val sizeText = if (sizeBytes > 0) String.format("%.1f MB", sizeBytes / (1024.0 * 1024.0)) else "Direct Stream"
 
     Box(
         modifier = Modifier
@@ -868,7 +1170,7 @@ fun StreamOptionRow(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Approx. $sizeMb",
+                    text = sizeText,
                     color = Color(0xFF94A3B8),
                     fontSize = 11.5.sp
                 )

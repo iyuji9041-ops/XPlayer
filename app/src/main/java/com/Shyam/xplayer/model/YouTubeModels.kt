@@ -25,7 +25,8 @@ data class YouTubeVideoQuality(
     val height: Int,
     val format: String = "MP4",
     val approximateSizeBytes: Long = 0L,
-    val streamUrl: String
+    val streamUrl: String,
+    val formatId: String = ""
 )
 
 data class YouTubeAudioQuality(
@@ -33,7 +34,8 @@ data class YouTubeAudioQuality(
     val bitrateKbps: Int,
     val format: String,
     val approximateSizeBytes: Long = 0L,
-    val streamUrl: String
+    val streamUrl: String,
+    val formatId: String = ""
 )
 
 data class YouTubeVideoItem(
@@ -46,5 +48,6 @@ data class YouTubeVideoItem(
     val streamUrl: String,
     val videoQualities: List<YouTubeVideoQuality> = emptyList(),
     val audioQualities: List<YouTubeAudioQuality> = emptyList(),
-    val subtitles: List<YouTubeSubtitle> = emptyList()
+    val subtitles: List<YouTubeSubtitle> = emptyList(),
+    val sourceUrl: String = ""
 )
