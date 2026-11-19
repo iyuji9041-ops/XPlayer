@@ -130,20 +130,34 @@ object ExtractionEngine {
         val ext = fmt.ext?.lowercase() ?: "mp4"
 
         val isStoryboard = ext == "mhtml" || fmt.formatNote?.contains("storyboard", true) == true || url.contains("storyboard")
-        val isVideo = fmt.vcodec != null && fmt.vcodec != "none" && !isStoryboard
-        val isAudioOnly = (fmt.vcodec == null || fmt.vcodec == "none") && fmt.acodec != null && fmt.acodec != "none" && !isStoryboard
+        val isVideo = !fmt.vcodec.isNullOrEmpty() && fmt.vcodec != "none" && !isStoryboard
+        val isAudioOnly = (fmt.vcodec.isNullOrEmpty() || fmt.vcodec == "none") &&
+                          ((!fmt.acodec.isNullOrEmpty() && fmt.acodec != "none") || ext == "m4a" || ext == "mp3" || ext == "opus") &&
+                          !isStoryboard
 
         if (isVideo && height != null && height >= 144) {
-          if (progressiveStreamUrl == null && fmt.acodec != null && fmt.acodec != "none") {
+          if (progressiveStreamUrl == null && !fmt.acodec.isNullOrEmpty() && fmt.acodec != "none") {
             progressiveStreamUrl = url
           }
 
           var fileSize = fmt.fileSize ?: fmt.fileSizeApproximate ?: 0L
           if (fileSize <= 0L) {
-            val tbr = fmt.tbr ?: fmt.vbr ?: 0.0
+            val tbr = fmt.tbr ?: 0.0
             if (tbr > 0.0 && durationSec > 0L) {
               fileSize = ((tbr * 1024.0 / 8.0) * durationSec).toLong()
             }
+          }
+          if (fileSize <= 0L && durationSec > 0L) {
+            val estBitrateKbps = when {
+              height >= 2160 -> 18000.0
+              height >= 1440 -> 9000.0
+              height >= 1080 -> 4000.0
+              height >= 720  -> 2200.0
+              height >= 480  -> 1100.0
+              height >= 360  -> 650.0
+              else           -> 350.0
+            }
+            fileSize = ((estBitrateKbps * 1024.0 / 8.0) * durationSec).toLong()
           }
 
           val label = "${height}p ${if (height >= 2160) "4K UHD" else if (height >= 1440) "2K QHD" else if (height >= 1080) "Full HD" else if (height >= 720) "HD" else "SD"}"
@@ -167,6 +181,9 @@ object ExtractionEngine {
           var audioSize = fmt.fileSize ?: fmt.fileSizeApproximate ?: 0L
           if (audioSize <= 0L && rawAbr > 0 && durationSec > 0L) {
             audioSize = ((rawAbr * 1024L / 8L) * durationSec)
+          }
+          if (audioSize <= 0L && durationSec > 0L) {
+            audioSize = (128L * 1024L / 8L) * durationSec
           }
 
           audioQualities.add(

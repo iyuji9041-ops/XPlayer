@@ -245,7 +245,8 @@ fun OnlineStreamScreen(
         isAudio: Boolean,
         targetHeight: Int,
         audioFormat: String,
-        label: String
+        label: String,
+        formatId: String = ""
     ) {
         if (isDownloading) {
             Toast.makeText(context, "A download is already running. Please wait.", Toast.LENGTH_SHORT).show()
@@ -268,6 +269,7 @@ fun OnlineStreamScreen(
             try {
                 try {
                     YoutubeDL.getInstance().init(context.applicationContext)
+                    com.yausername.ffmpeg.FFmpeg.getInstance().init(context.applicationContext)
                 } catch (_: Throwable) {}
 
                 val tempDir = File(context.cacheDir, "xplayer_downloads").apply { if (!exists()) mkdirs() }
@@ -280,7 +282,7 @@ fun OnlineStreamScreen(
                 // 1. Primary native yt-dlp execution
                 try {
                     val request = YoutubeDLRequest(targetUrl).apply {
-                        addOption("-o", "${tempDir.absolutePath}/$fileName")
+                        addOption("-o", "${tempDir.absolutePath}/$cleanTitle.%(ext)s")
                         addOption("--no-mtime")
                         addOption("--no-playlist")
                         addOption("--socket-timeout", "30")
@@ -289,10 +291,18 @@ fun OnlineStreamScreen(
                         addOption("--geo-bypass")
                         if (isAudio) {
                             addOption("-x")
-                            addOption("--audio-format", if (audioFormat.contains("mp3", true)) "mp3" else "m4a")
+                            val targetAudioExt = if (audioFormat.contains("mp3", true)) "mp3" else "m4a"
+                            addOption("--audio-format", targetAudioExt)
                             addOption("--audio-quality", "0")
+                            if (formatId.isNotBlank() && formatId.toIntOrNull() != null) {
+                                addOption("-f", "$formatId/bestaudio[ext=$targetAudioExt]/bestaudio[ext=m4a]/bestaudio/ba/best")
+                            } else {
+                                addOption("-f", "bestaudio[ext=$targetAudioExt]/bestaudio[ext=m4a]/bestaudio/ba/best")
+                            }
                         } else {
-                            if (targetHeight > 0) {
+                            if (formatId.isNotBlank() && formatId.toIntOrNull() != null) {
+                                addOption("-f", "$formatId+bestaudio/bestvideo[height<=$targetHeight]+bestaudio/best[height<=$targetHeight]/best")
+                            } else if (targetHeight > 0) {
                                 addOption("-f", "bestvideo[height<=$targetHeight][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=$targetHeight]+bestaudio/best[height<=$targetHeight]/best")
                             } else {
                                 addOption("-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best")
@@ -310,7 +320,16 @@ fun OnlineStreamScreen(
                             downloadProgressText = "${progress.toInt()}%$speedPart"
                         }
                     }
-                    downloadSuccess = tempFile.exists() && tempFile.length() > 0
+
+                    val downloadedFiles = tempDir.listFiles { _, name -> name.startsWith(cleanTitle) }
+                    val finalFile = downloadedFiles?.maxByOrNull { it.lastModified() }
+                    if (finalFile != null && finalFile.exists() && finalFile.length() > 0) {
+                        finalFile.copyTo(tempFile, overwrite = true)
+                        finalFile.delete()
+                        downloadSuccess = true
+                    } else {
+                        downloadSuccess = tempFile.exists() && tempFile.length() > 0
+                    }
                 } catch (ytdlError: Throwable) {
                     Log.w("OnlineStream", "yt-dlp primary download note: ${ytdlError.message}")
                     // 2. Direct Stream Fallback via OkHttp stream copy
@@ -1012,7 +1031,7 @@ fun OnlineStreamScreen(
                                                 sizeBytes = vq.approximateSizeBytes,
                                                 isAudio = false,
                                                 onPlay = { onPlayStream(vq.streamUrl, item.title) },
-                                                onDownload = {
+                                                 onDownload = {
                                                     startDownload(
                                                         sourceUrl = item.sourceUrl,
                                                         directStreamUrl = vq.streamUrl,
@@ -1020,7 +1039,8 @@ fun OnlineStreamScreen(
                                                         isAudio = false,
                                                         targetHeight = vq.height,
                                                         audioFormat = "",
-                                                        label = vq.qualityLabel
+                                                        label = vq.qualityLabel,
+                                                        formatId = vq.formatId
                                                     )
                                                 }
                                             )
@@ -1045,7 +1065,8 @@ fun OnlineStreamScreen(
                                                         isAudio = true,
                                                         targetHeight = 0,
                                                         audioFormat = ext,
-                                                        label = aq.qualityLabel
+                                                        label = aq.qualityLabel,
+                                                        formatId = aq.formatId
                                                     )
                                                 }
                                             )
