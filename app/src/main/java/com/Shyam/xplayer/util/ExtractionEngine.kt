@@ -142,7 +142,7 @@ object ExtractionEngine {
 
           var fileSize = fmt.fileSize ?: fmt.fileSizeApproximate ?: 0L
           if (fileSize <= 0L) {
-            val tbr = fmt.tbr ?: 0.0
+            val tbr = fmt.tbr?.toDouble() ?: 0.0
             if (tbr > 0.0 && durationSec > 0L) {
               fileSize = ((tbr * 1024.0 / 8.0) * durationSec).toLong()
             }
